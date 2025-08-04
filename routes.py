@@ -1,10 +1,15 @@
 from fastapi import APIRouter, HTTPException, Request
 from models import WebhookPayload
+from services import OpenAIService, MessageFormatter
 from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Initialize services
+openai_service = OpenAIService()
+message_formatter = MessageFormatter()
 
 @router.post("/dixa_conversation_started")
 async def dixa_webhook(payload: WebhookPayload):
@@ -29,15 +34,38 @@ async def dixa_webhook(payload: WebhookPayload):
         
         logger.info(f"Time difference: {time_diff}ms, Initial message: {is_initial_message}")
         
-        # Return the processed data with isInitialMessage flag
-        return {
-            "status": "received",
-            "conversation_id": payload.data.conversation.csid,
-            "message_id": payload.data.message_id,
-            "isInitialMessage": is_initial_message,
-            "time_diff_ms": time_diff,
-            "message_text": payload.data.text
-        }
+        # Conditional processing - only process initial messages (matching n8n If node)
+        if is_initial_message:
+            logger.info("Processing initial message with OpenAI")
+            
+            # Process with OpenAI Assistant (matching n8n OpenAI node)
+            ai_response = await openai_service.process_message(payload.data.text)
+            
+            # Format response with webhook buttons (matching n8n Json converter node)
+            formatted_response = message_formatter.format_response_with_webhook(ai_response)
+            
+            if formatted_response["success"]:
+                return {
+                    "status": "processed",
+                    "conversation_id": payload.data.conversation.csid,
+                    "message_id": payload.data.message_id,
+                    "isInitialMessage": is_initial_message,
+                    "ai_response": ai_response,
+                    "formatted_response": formatted_response["cleaned_response"],
+                    "dixa_payload": formatted_response["dixa_payload"]
+                }
+            else:
+                raise HTTPException(status_code=500, detail=f"Error formatting response: {formatted_response['error']}")
+        else:
+            # No operation for non-initial messages (matching n8n "No Operation" node)
+            logger.info("Non-initial message - no processing required")
+            return {
+                "status": "ignored",
+                "conversation_id": payload.data.conversation.csid,
+                "message_id": payload.data.message_id,
+                "isInitialMessage": is_initial_message,
+                "reason": "Not an initial message"
+            }
         
     except Exception as e:
         logger.error(f"Error processing webhook: {str(e)}")
