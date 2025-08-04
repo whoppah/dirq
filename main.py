@@ -1,9 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import logging
 from dotenv import load_dotenv
+from routes import router
 
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Dixa Workflow API",
@@ -19,13 +25,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include routes
+app.include_router(router)
+
 @app.get("/")
 async def root():
     return {"message": "Dixa Workflow API is running"}
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
