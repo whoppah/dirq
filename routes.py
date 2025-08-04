@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 from models import WebhookPayload
-from services import OpenAIService, MessageFormatter
+from services import OpenAIService, MessageFormatter, DixaAPIService, MongoDBService
 from datetime import datetime
 import logging
 
@@ -10,6 +10,8 @@ router = APIRouter()
 # Initialize services
 openai_service = OpenAIService()
 message_formatter = MessageFormatter()
+dixa_service = DixaAPIService()
+mongodb_service = MongoDBService()
 
 @router.post("/dixa_conversation_started")
 async def dixa_webhook(payload: WebhookPayload):
@@ -45,15 +47,49 @@ async def dixa_webhook(payload: WebhookPayload):
             formatted_response = message_formatter.format_response_with_webhook(ai_response)
             
             if formatted_response["success"]:
-                return {
-                    "status": "processed",
-                    "conversation_id": payload.data.conversation.csid,
-                    "message_id": payload.data.message_id,
-                    "isInitialMessage": is_initial_message,
-                    "ai_response": ai_response,
-                    "formatted_response": formatted_response["cleaned_response"],
-                    "dixa_payload": formatted_response["dixa_payload"]
-                }
+                # Send message to Dixa (matching n8n "Send Email with webhook included" node)
+                dixa_result = await dixa_service.send_message(
+                    payload.data.conversation.csid,
+                    formatted_response["dixa_payload"]
+                )
+                
+                if dixa_result["success"]:
+                    # Log to MongoDB (matching n8n Postgres node)
+                    log_data = {
+                        "conversation_id": payload.data.conversation.csid,
+                        "message_id": payload.data.message_id,
+                        "user_id": payload.data.author.id,
+                        "ai_response": ai_response,
+                        "is_initial_message": is_initial_message,
+                        "time_diff_ms": time_diff,
+                        "dixa_message_sent": True,
+                        "original_text": payload.data.text
+                    }
+                    
+                    log_result = await mongodb_service.log_conversation(log_data)
+                    
+                    return {
+                        "status": "processed_and_sent",
+                        "conversation_id": payload.data.conversation.csid,
+                        "message_id": payload.data.message_id,
+                        "isInitialMessage": is_initial_message,
+                        "ai_response": ai_response,
+                        "dixa_response": dixa_result["response"],
+                        "message_sent": True,
+                        "logged_to_db": log_result["success"]
+                    }
+                else:
+                    # If sending fails, still return the processed response
+                    logger.error(f"Failed to send message to Dixa: {dixa_result['error']}")
+                    return {
+                        "status": "processed_but_not_sent",
+                        "conversation_id": payload.data.conversation.csid,
+                        "message_id": payload.data.message_id,
+                        "isInitialMessage": is_initial_message,
+                        "ai_response": ai_response,
+                        "dixa_error": dixa_result["error"],
+                        "message_sent": False
+                    }
             else:
                 raise HTTPException(status_code=500, detail=f"Error formatting response: {formatted_response['error']}")
         else:
@@ -72,13 +108,40 @@ async def dixa_webhook(payload: WebhookPayload):
         raise HTTPException(status_code=500, detail=f"Error processing webhook: {str(e)}")
 
 @router.get("/responded_false")
-async def response_webhook_no():
+async def response_webhook_no(user_id: str = None, conversation_id: int = None):
     """
     Webhook endpoint for handling "No" responses
-    Matches the n8n "Webhook for Response No" node
+    Matches the n8n "Webhook for Response No" node and triggers queue transfer
     """
     logger.info("Received 'No' response webhook")
-    return {"status": "response_received", "action": "no"}
+    
+    # For now, using hardcoded values as in the n8n workflow
+    # In production, these would come from the webhook URL parameters or be stored
+    if not conversation_id:
+        conversation_id = 33332  # Hardcoded as in n8n
+    if not user_id:
+        user_id = "db7d9668-78be-4596-bf1c-d463e11eb6b1"  # From n8n payload example
+    
+    # Transfer to queue (matching n8n "Transfer Queue" node)
+    transfer_result = await dixa_service.transfer_to_queue(conversation_id, user_id)
+    
+    if transfer_result["success"]:
+        return {
+            "status": "response_received_and_transferred",
+            "action": "no",
+            "conversation_id": conversation_id,
+            "transferred_to_queue": True,
+            "queue_id": transfer_result.get("response", {}).get("queueId", "unknown")
+        }
+    else:
+        logger.error(f"Failed to transfer to queue: {transfer_result['error']}")
+        return {
+            "status": "response_received_but_transfer_failed",
+            "action": "no",
+            "conversation_id": conversation_id,
+            "transferred_to_queue": False,
+            "error": transfer_result["error"]
+        }
 
 @router.get("/health")
 async def health_check():
