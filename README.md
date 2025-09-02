@@ -7,6 +7,7 @@ FastAPI backend that exactly replicates the n8n Dixa automation workflow for pro
 This application implements the complete n8n workflow with the following functionality:
 
 ✅ **Webhook Integration** - Receives Dixa conversation messages  
+✅ **Domain Filtering** - Only processes messages from whoppah.com email addresses
 ✅ **Initial Message Detection** - 5-second threshold logic for conversation starts  
 ✅ **OpenAI Assistant** - Processes messages using assistant `asst_ddwAna95PNJj3m0ZDmnVB7yf`  
 ✅ **Response Formatting** - Adds HTML confirmation buttons to AI responses  
@@ -18,9 +19,9 @@ This application implements the complete n8n workflow with the following functio
 ## Workflow Logic
 
 ```
-Dixa Webhook → Message Detection → [Initial Message?] 
-    ↓ Yes                              ↓ No
-OpenAI Processing → Response Format → Skip (No-Op)
+Dixa Webhook → Message Detection → [Initial Message?] → [whoppah.com domain?]
+    ↓ Yes                              ↓ No              ↓ No
+OpenAI Processing → Response Format → Skip (No-Op) ← Skip (No-Op)
     ↓
 Send to Dixa → Log to MongoDB → Await Confirmation
     ↓ No Response Rejected
@@ -110,6 +111,11 @@ The API will be available at `http://localhost:8000`
 - Logs conversation data and AI responses
 - Provides audit trail for all interactions
 - Stores processing metadata
+
+### ValidationService
+- Validates email domains (only whoppah.com allowed)
+- Determines if messages should be processed
+- Combines domain and initial message checks
 
 ## Configuration
 

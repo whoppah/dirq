@@ -1,0 +1,53 @@
+{
+  "event_id": "test-event-123",
+  "event_fqn": "CONVERSATION_MESSAGE_ADDED",
+  "event_version": "1",
+  "event_timestamp": "2025-01-26T13:01:02.954Z",
+  "organization": {
+    "id": "7c0308f4-8217-41e5-8dbe-725525c47ee3",
+    "name": "Whoppah"
+  },
+  "data": {
+    "conversation": {
+      "csid": 33356,
+      "channel": "EMAIL",
+      "status": "OPEN",
+      "direction": "INBOUND",
+      "queue": null,
+      "contact_point": "whoppah-support@email.dixa.io",
+      "requester": {
+        "id": "test-user-id",
+        "name": "Test User",
+        "email": "testuser@whoppah.com",
+        "phone": null,
+        "roles": [],
+        "user_type": "Member"
+      },
+      "assignee": null,
+      "subject": "Test message from whoppah.com user",
+      "tags": [],
+      "created_at": "2025-01-26T13:01:02.900Z"
+    },
+    "author": {
+      "id": "test-user-id",
+      "name": "Test User",
+      "email": "testuser@whoppah.com",
+      "phone": null,
+      "roles": [],
+      "user_type": "Member"
+    },
+    "created_at": "2025-01-26T13:01:02.954Z",
+    "message_id": "test-message-123",
+    "text": "Hello, I need help with my order. Can you please assist me?",
+    "direction": "inbound",
+    "channel": "EMAIL",
+    "content": {
+      "text": "Hello, I need help with my order. Can you please assist me?",
+      "content_type": null,
+      "original_content_url": null,
+      "processed_content_url": null
+    },
+    "attachments": [],
+    "external_id": null
+  }
+}

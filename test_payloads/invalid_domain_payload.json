@@ -1,0 +1,53 @@
+{
+  "event_id": "test-event-456",
+  "event_fqn": "CONVERSATION_MESSAGE_ADDED",
+  "event_version": "1",
+  "event_timestamp": "2025-01-26T13:01:02.954Z",
+  "organization": {
+    "id": "7c0308f4-8217-41e5-8dbe-725525c47ee3",
+    "name": "Whoppah"
+  },
+  "data": {
+    "conversation": {
+      "csid": 33357,
+      "channel": "EMAIL",
+      "status": "OPEN",
+      "direction": "INBOUND",
+      "queue": null,
+      "contact_point": "whoppah-support@email.dixa.io",
+      "requester": {
+        "id": "external-user-id",
+        "name": "External User",
+        "email": "external@gmail.com",
+        "phone": null,
+        "roles": [],
+        "user_type": "Member"
+      },
+      "assignee": null,
+      "subject": "Test message from external user",
+      "tags": [],
+      "created_at": "2025-01-26T13:01:02.900Z"
+    },
+    "author": {
+      "id": "external-user-id",
+      "name": "External User", 
+      "email": "external@gmail.com",
+      "phone": null,
+      "roles": [],
+      "user_type": "Member"
+    },
+    "created_at": "2025-01-26T13:01:02.954Z",
+    "message_id": "test-message-456",
+    "text": "Hello, I'm trying to contact whoppah support",
+    "direction": "inbound",
+    "channel": "EMAIL",
+    "content": {
+      "text": "Hello, I'm trying to contact whoppah support",
+      "content_type": null,
+      "original_content_url": null,
+      "processed_content_url": null
+    },
+    "attachments": [],
+    "external_id": null
+  }
+}
