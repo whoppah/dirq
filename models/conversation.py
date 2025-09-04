@@ -1,6 +1,11 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
+
+class Tag(BaseModel):
+    id: str
+    name: str
+    is_deactivated: bool
 
 class ContactPoint(BaseModel):
     id: str
@@ -20,7 +25,7 @@ class Conversation(BaseModel):
     requester: ContactPoint
     assignee: Optional[ContactPoint] = None
     subject: str
-    tags: List[str] = []
+    tags: List[Tag] = []
     created_at: str
 
 class MessageContent(BaseModel):

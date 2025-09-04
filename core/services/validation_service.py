@@ -10,7 +10,9 @@ class ValidationService:
     """
     
     def __init__(self):
-        self.allowed_domains = ["whoppah.com"]
+        self.allowed_domains = ["whoppah.com", "whoppah.nl"]
+        # Also allow emails containing "whoppah" in the domain
+        self.whoppah_patterns = ["whoppah"]
     
     def is_email_from_allowed_domain(self, email: str) -> Tuple[bool, str]:
         """
@@ -39,9 +41,15 @@ class ValidationService:
             if domain in self.allowed_domains:
                 logger.info(f"Email domain validated: {domain}")
                 return True, f"Allowed domain: {domain}"
-            else:
-                logger.info(f"Email domain rejected: {domain} (not in allowed domains: {self.allowed_domains})")
-                return False, f"Domain not allowed: {domain}"
+            
+            # Check if domain contains whoppah patterns
+            for pattern in self.whoppah_patterns:
+                if pattern in domain:
+                    logger.info(f"Email domain validated (pattern match): {domain}")
+                    return True, f"Allowed domain (contains '{pattern}'): {domain}"
+            
+            logger.info(f"Email domain rejected: {domain} (not in allowed domains: {self.allowed_domains})")
+            return False, f"Domain not allowed: {domain}"
                 
         except Exception as e:
             logger.error(f"Error validating email domain: {str(e)}")
