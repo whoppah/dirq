@@ -7,6 +7,10 @@ class Tag(BaseModel):
     name: str
     is_deactivated: bool
 
+class Queue(BaseModel):
+    id: str
+    name: str
+
 class ContactPoint(BaseModel):
     id: str
     name: str
@@ -20,7 +24,7 @@ class Conversation(BaseModel):
     channel: str
     status: str
     direction: str
-    queue: Optional[str] = None
+    queue: Optional[Queue] = None
     contact_point: str
     requester: ContactPoint
     assignee: Optional[ContactPoint] = None
