@@ -9,90 +9,54 @@ class OpenAIService:
         self.client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
         )
-        self.assistant_id = settings.OPENAI_ASSISTANT_ID
+        self.prompt_id = settings.OPENAI_PROMPT_ID
     
-    async def process_message(self, user_text: str) -> str:
+    async def process_message(self, user_text: str, customer_name: str = None) -> str:
         """
-        Process user message using OpenAI Assistant API
-        Matches the exact OpenAI node configuration from n8n
+        Process user message using OpenAI Prompts API
+        Uses prompt templates with customer name variable
         """
         try:
-            logger.info("🤖 OPENAI SERVICE - Starting message processing")
-            logger.info(f"   Assistant ID: {self.assistant_id}")
+            logger.info("🤖 OPENAI SERVICE - Starting message processing with prompts")
+            logger.info(f"   Prompt ID: {self.prompt_id}")
+            logger.info(f"   Customer Name: {customer_name}")
             logger.info(f"   Input text length: {len(user_text)} chars")
             logger.info(f"   Input preview: {user_text[:100]}{'...' if len(user_text) > 100 else ''}")
             
-            # Create a thread
-            logger.info("   Creating OpenAI thread...")
-            thread = await self.client.beta.threads.create()
-            logger.info(f"   ✅ Thread created: {thread.id}")
+            # Prepare prompt variables
+            prompt_variables = {
+                "customerMessage": user_text
+            }
             
-            # Add the user message to the thread
-            formatted_content = f"Users email:\n {user_text}"  # Exact format from n8n
-            logger.info("   Adding message to thread...")
-            logger.info(f"   Formatted content: {formatted_content[:150]}{'...' if len(formatted_content) > 150 else ''}")
+            # Add customer name if available
+            if customer_name:
+                prompt_variables["customerFirstName"] = customer_name
+                logger.info(f"   Added customer name variable: {customer_name}")
             
-            await self.client.beta.threads.messages.create(
-                thread_id=thread.id,
-                role="user",
-                content=formatted_content
+            logger.info(f"   Prompt variables: {list(prompt_variables.keys())}")
+            
+            # Call OpenAI Prompts API
+            logger.info("   Calling OpenAI Prompts API...")
+            response = await self.client.responses.create(
+                prompt={
+                    "id": self.prompt_id,
+                    "version": "2",
+                    "variables": prompt_variables
+                }
             )
-            logger.info("   ✅ Message added to thread")
             
-            # Run the assistant
-            logger.info("   Starting assistant run...")
-            run = await self.client.beta.threads.runs.create(
-                thread_id=thread.id,
-                assistant_id=self.assistant_id
-            )
-            logger.info(f"   ✅ Run created: {run.id}")
-            logger.info(f"   Initial status: {run.status}")
+            logger.info("   ✅ OpenAI Prompts response received")
             
-            # Wait for completion
-            poll_count = 0
-            while run.status in ["queued", "in_progress"]:
-                poll_count += 1
-                logger.info(f"   Polling run status... (attempt {poll_count}) - Status: {run.status}")
-                
-                run = await self.client.beta.threads.runs.retrieve(
-                    thread_id=thread.id,
-                    run_id=run.id
-                )
-                
-                # Add a small delay to avoid excessive polling
-                if run.status in ["queued", "in_progress"]:
-                    import asyncio
-                    await asyncio.sleep(1)
-            
-            logger.info(f"   Final run status: {run.status}")
-            
-            if run.status == "completed":
-                logger.info("   ✅ Run completed successfully - Retrieving messages...")
-                
-                # Get the assistant's response
-                messages = await self.client.beta.threads.messages.list(
-                    thread_id=thread.id
-                )
-                
-                logger.info(f"   Retrieved {len(messages.data)} messages from thread")
-                
-                # Get the latest assistant message
-                for i, message in enumerate(messages.data):
-                    logger.info(f"   Message {i}: Role={message.role}, Content length={len(message.content[0].text.value) if message.content else 0}")
-                    if message.role == "assistant":
-                        response_text = message.content[0].text.value
-                        logger.info(f"   ✅ Assistant response found: {response_text[:200]}{'...' if len(response_text) > 200 else ''}")
-                        logger.info(f"   Response length: {len(response_text)} chars")
-                        return response_text
-                
-                logger.error("   ❌ No assistant message found in thread")
-                return "Error: No assistant response found"
+            # Extract response content
+            if response and hasattr(response, 'content'):
+                ai_response = response.content
+                logger.info(f"   Response length: {len(ai_response)} chars")
+                logger.info(f"   Response preview: {ai_response[:200]}{'...' if len(ai_response) > 200 else ''}")
+                return ai_response
             else:
-                logger.error(f"   ❌ OpenAI run failed with status: {run.status}")
-                if hasattr(run, 'last_error') and run.last_error:
-                    logger.error(f"   Error details: {run.last_error}")
-                return "Error: Could not generate response"
+                logger.error("   ❌ No content in OpenAI response")
+                return "Error: No response content received from OpenAI"
             
         except Exception as e:
-            logger.error(f"   ❌ OpenAI API error: {type(e).__name__}: {str(e)}")
+            logger.error(f"   ❌ OpenAI Prompts API error: {type(e).__name__}: {str(e)}")
             return f"Error: {str(e)}"
