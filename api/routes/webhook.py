@@ -69,7 +69,11 @@ async def dixa_webhook(payload: WebhookPayload):
             
             # Format response with webhook buttons (matching n8n Json converter node)
             logger.info("   Formatting response with webhook buttons...")
-            formatted_response = services.message_formatter.format_response_with_webhook(ai_response)
+            formatted_response = services.message_formatter.format_response_with_webhook(
+                ai_response, 
+                user_id=payload.data.author.id,
+                conversation_id=payload.data.conversation.csid
+            )
             logger.info(f"   ✅ Response formatted successfully: {formatted_response.get('success', False)}")
             
             if formatted_response["success"]:
@@ -174,14 +178,20 @@ async def response_webhook_no(user_id: str = None, conversation_id: int = None):
     logger.info(f"👤 User ID: {user_id}")
     logger.info(f"📞 Conversation ID: {conversation_id}")
     
-    # For now, using hardcoded values as in the n8n workflow
-    # In production, these would come from the webhook URL parameters or be stored
+    # Validate required parameters - no hardcoded values
     if not conversation_id:
-        conversation_id = 33332  # Hardcoded as in n8n
-        logger.info(f"   Using hardcoded conversation_id: {conversation_id}")
+        logger.error("❌ VALIDATION ERROR: conversation_id is required")
+        raise HTTPException(
+            status_code=400, 
+            detail="Missing required parameter: conversation_id"
+        )
+    
     if not user_id:
-        user_id = "db7d9668-78be-4596-bf1c-d463e11eb6b1"  # From n8n payload example
-        logger.info(f"   Using hardcoded user_id: {user_id}")
+        logger.error("❌ VALIDATION ERROR: user_id is required")
+        raise HTTPException(
+            status_code=400, 
+            detail="Missing required parameter: user_id"
+        )
     
     # Transfer to queue (matching n8n "Transfer Queue" node)
     logger.info("🔄 QUEUE TRANSFER PROCESSING:")

@@ -115,12 +115,18 @@ async def response_webhook_no(user_id: str = None, conversation_id: int = None):
     """
     logger.info("Received 'No' response webhook")
     
-    # For now, using hardcoded values as in the n8n workflow
-    # In production, these would come from the webhook URL parameters or be stored
+    # Validate required parameters - no hardcoded values
     if not conversation_id:
-        conversation_id = 33332  # Hardcoded as in n8n
+        raise HTTPException(
+            status_code=400, 
+            detail="Missing required parameter: conversation_id"
+        )
+    
     if not user_id:
-        user_id = "db7d9668-78be-4596-bf1c-d463e11eb6b1"  # From n8n payload example
+        raise HTTPException(
+            status_code=400, 
+            detail="Missing required parameter: user_id"
+        )
     
     # Transfer to queue (matching n8n "Transfer Queue" node)
     transfer_result = await dixa_service.transfer_to_queue(conversation_id, user_id)

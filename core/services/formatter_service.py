@@ -43,7 +43,7 @@ class MessageFormatter:
 
         return cleaned
     
-    def format_response_with_webhook(self, ai_response: str) -> dict:
+    def format_response_with_webhook(self, ai_response: str, user_id: str = None, conversation_id: int = None) -> dict:
         """
         Format AI response with webhook buttons
         Returns the exact payload structure for Dixa API
@@ -54,9 +54,30 @@ class MessageFormatter:
             logger.info(f"   AI Response preview: {ai_response[:150]}{'...' if len(ai_response) > 150 else ''}")
             logger.info(f"   Webhook base URL: {settings.WEBHOOK_BASE_URL}")
             
+            # Generate dynamic webhook buttons with correct parameters
+            logger.info("   Generating dynamic webhook buttons...")
+            if user_id and conversation_id:
+                webhook_content = f"""
+<p>Please confirm your response:</p>
+
+<a href="{settings.WEBHOOK_BASE_URL}/respond?answer=yes&user_id={user_id}&conversation_id={conversation_id}"
+   style="display: inline-block; padding: 10px 20px; margin-right: 10px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px;">
+   Yes
+</a>
+
+<a href="{settings.WEBHOOK_BASE_URL}/responded_false?user_id={user_id}&conversation_id={conversation_id}"
+   style="display: inline-block; padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 4px;">
+   No
+</a>
+"""
+                logger.info(f"   Using dynamic parameters: user_id={user_id}, conversation_id={conversation_id}")
+            else:
+                webhook_content = self.webhook_content
+                logger.info("   Using static webhook buttons (missing parameters)")
+            
             # Append webhook buttons to the response
             logger.info("   Combining AI response with webhook buttons...")
-            combined_content = ai_response + "\n\n" + self.webhook_content
+            combined_content = ai_response + "\n\n" + webhook_content
             logger.info(f"   Combined content length: {len(combined_content)} chars")
             
             logger.info("   Cleaning text for JSON compatibility...")

@@ -6,7 +6,10 @@ logger = logging.getLogger(__name__)
 
 class OpenAIService:
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = AsyncOpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            default_headers={"OpenAI-Beta": "assistants=v2"}
+        )
         self.assistant_id = settings.OPENAI_ASSISTANT_ID
     
     async def process_message(self, user_text: str) -> str:
