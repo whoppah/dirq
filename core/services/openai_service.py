@@ -8,7 +8,6 @@ class OpenAIService:
     def __init__(self):
         self.client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
-            default_headers={"OpenAI-Beta": "assistants=v2"}
         )
         self.assistant_id = settings.OPENAI_ASSISTANT_ID
     
