@@ -64,12 +64,8 @@ async def dixa_webhook(payload: WebhookPayload):
             
             # Process with OpenAI Assistant (matching n8n OpenAI node)
             logger.info("   Calling OpenAI service...")
-            try:
-                ai_response = await services.openai_service.process_message(payload.data.text)
-                logger.info(f"   ✅ OpenAI Response received: {ai_response[:200]}{'...' if len(ai_response) > 200 else ''}")
-            except Exception as openai_error:
-                logger.error(f"   ❌ OpenAI service failed: {type(openai_error).__name__}: {str(openai_error)}")
-                ai_response = f"Error: OpenAI service failed - {str(openai_error)}"
+            ai_response = await services.openai_service.process_message(payload.data.text)
+            logger.info(f"   ✅ OpenAI Response received: {ai_response[:200]}{'...' if len(ai_response) > 200 else ''}")
             
             # Format response with webhook buttons (matching n8n Json converter node)
             logger.info("   Formatting response with webhook buttons...")
