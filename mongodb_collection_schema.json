@@ -1,0 +1,87 @@
+{
+  "database": "dirq",
+  "collection": "conversations",
+  "description": "Collection to store Dixa conversation logs and AI responses",
+  "indexes": [
+    {
+      "name": "conversation_id_index",
+      "fields": { "conversation_id": 1 }
+    },
+    {
+      "name": "logged_at_index", 
+      "fields": { "logged_at": -1 }
+    },
+    {
+      "name": "user_id_index",
+      "fields": { "user_id": 1 }
+    }
+  ],
+  "document_schema": {
+    "conversation_id": {
+      "type": "string",
+      "description": "Dixa conversation CSID",
+      "example": "12345"
+    },
+    "message_id": {
+      "type": "string", 
+      "description": "Unique message identifier",
+      "example": "msg_abc123"
+    },
+    "user_id": {
+      "type": "string",
+      "description": "Author/user ID from Dixa",
+      "example": "db7d9668-78be-4596-bf1c-d463e11eb6b1"
+    },
+    "ai_response": {
+      "type": "string",
+      "description": "OpenAI assistant response text",
+      "example": "Thank you for contacting Whoppah! How can I help you today?"
+    },
+    "is_initial_message": {
+      "type": "boolean",
+      "description": "Whether this is the first message in conversation (within 5 seconds)",
+      "example": true
+    },
+    "time_diff_ms": {
+      "type": "number",
+      "description": "Time difference between conversation creation and message in milliseconds",
+      "example": 2500
+    },
+    "dixa_message_sent": {
+      "type": "boolean", 
+      "description": "Whether the AI response was successfully sent back to Dixa",
+      "example": true
+    },
+    "original_text": {
+      "type": "string",
+      "description": "Original message text from user",
+      "example": "Hello, I need help with my order"
+    },
+    "logged_at": {
+      "type": "date",
+      "description": "Timestamp when the record was logged to MongoDB",
+      "example": "2025-01-07T00:14:04.000Z"
+    }
+  },
+  "sample_document": {
+    "conversation_id": "12345",
+    "message_id": "msg_abc123def456",
+    "user_id": "db7d9668-78be-4596-bf1c-d463e11eb6b1",
+    "ai_response": "Thank you for contacting Whoppah! I'm here to help you with any questions about our vintage furniture marketplace. How can I assist you today?",
+    "is_initial_message": true,
+    "time_diff_ms": 2500,
+    "dixa_message_sent": true,
+    "original_text": "Hello, I need help with my order",
+    "logged_at": "2025-01-07T00:14:04.000Z"
+  },
+  "mongodb_commands": {
+    "create_database": "use dirq",
+    "create_collection": "db.createCollection('conversations')",
+    "create_indexes": [
+      "db.conversations.createIndex({ 'conversation_id': 1 })",
+      "db.conversations.createIndex({ 'logged_at': -1 })", 
+      "db.conversations.createIndex({ 'user_id': 1 })"
+    ],
+    "insert_sample": "db.conversations.insertOne({ 'conversation_id': '12345', 'message_id': 'msg_abc123def456', 'user_id': 'db7d9668-78be-4596-bf1c-d463e11eb6b1', 'ai_response': 'Thank you for contacting Whoppah!', 'is_initial_message': true, 'time_diff_ms': 2500, 'dixa_message_sent': true, 'original_text': 'Hello, I need help with my order', 'logged_at': new Date() })"
+  }
+}

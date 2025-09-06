@@ -49,11 +49,22 @@ class MessageFormatter:
         Returns the exact payload structure for Dixa API
         """
         try:
+            logger.info("🎨 FORMATTER SERVICE - Formatting response with webhook buttons")
+            logger.info(f"   AI Response length: {len(ai_response)} chars")
+            logger.info(f"   AI Response preview: {ai_response[:150]}{'...' if len(ai_response) > 150 else ''}")
+            logger.info(f"   Webhook base URL: {settings.WEBHOOK_BASE_URL}")
+            
             # Append webhook buttons to the response
+            logger.info("   Combining AI response with webhook buttons...")
             combined_content = ai_response + "\n\n" + self.webhook_content
+            logger.info(f"   Combined content length: {len(combined_content)} chars")
+            
+            logger.info("   Cleaning text for JSON compatibility...")
             cleaned_response = self.clean_text_for_json(combined_content)
+            logger.info(f"   Cleaned response length: {len(cleaned_response)} chars")
             
             # Prepare Dixa API payload (exact structure from n8n)
+            logger.info("   Building Dixa API payload...")
             payload = {
                 "agentId": settings.AGENT_ID,
                 "content": {
@@ -64,6 +75,12 @@ class MessageFormatter:
                 "_type": "Outbound"
             }
             
+            logger.info(f"   ✅ Payload created successfully:")
+            logger.info(f"      Agent ID: {settings.AGENT_ID}")
+            logger.info(f"      Content Type: text/html")
+            logger.info(f"      Message Type: Outbound")
+            logger.info(f"      Final payload size: {len(str(payload))} chars")
+            
             return {
                 "cleaned_response": cleaned_response,
                 "dixa_payload": payload,
@@ -71,7 +88,7 @@ class MessageFormatter:
             }
             
         except Exception as e:
-            logger.error(f"Error formatting response: {str(e)}")
+            logger.error(f"   ❌ Error formatting response: {type(e).__name__}: {str(e)}")
             return {
                 "error": str(e),
                 "success": False

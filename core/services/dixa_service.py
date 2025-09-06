@@ -24,8 +24,22 @@ class DixaAPIService:
         Matches exact HTTP POST from n8n "Send Email with webhook included" node
         """
         try:
-            url = f"{self.base_url}/conversations/{conversation_id}/messages"
+            logger.info("📤 DIXA SERVICE - Sending message to conversation")
+            logger.info(f"   Conversation ID: {conversation_id}")
+            logger.info(f"   Base URL: {self.base_url}")
+            logger.info(f"   Agent ID: {dixa_payload.get('agentId', 'Not specified')}")
+            logger.info(f"   Content Type: {dixa_payload.get('content', {}).get('contentType', 'Unknown')}")
+            logger.info(f"   Message Type: {dixa_payload.get('_type', 'Unknown')}")
             
+            url = f"{self.base_url}/conversations/{conversation_id}/messages"
+            logger.info(f"   Full URL: {url}")
+            
+            # Log payload structure (without full content for brevity)
+            content_preview = dixa_payload.get('content', {}).get('value', '')[:200]
+            logger.info(f"   Content preview: {content_preview}{'...' if len(content_preview) >= 200 else ''}")
+            logger.info(f"   Payload size: {len(str(dixa_payload))} chars")
+            
+            logger.info("   Making HTTP POST request...")
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     url,
@@ -33,15 +47,21 @@ class DixaAPIService:
                     json=dixa_payload
                 )
                 
+                logger.info(f"   ✅ HTTP Response received: {response.status_code}")
+                logger.info(f"   Response headers: {dict(response.headers)}")
+                
                 if response.status_code == 200 or response.status_code == 201:
-                    logger.info(f"Successfully sent message to conversation {conversation_id}")
+                    response_data = response.json() if response.content else {}
+                    logger.info(f"   ✅ Message sent successfully to conversation {conversation_id}")
+                    logger.info(f"   Response data keys: {list(response_data.keys()) if response_data else 'Empty response'}")
                     return {
                         "success": True,
-                        "response": response.json(),
+                        "response": response_data,
                         "status_code": response.status_code
                     }
                 else:
-                    logger.error(f"Dixa API error: {response.status_code} - {response.text}")
+                    logger.error(f"   ❌ Dixa API error: {response.status_code}")
+                    logger.error(f"   Response text: {response.text}")
                     return {
                         "success": False,
                         "error": f"HTTP {response.status_code}: {response.text}",
@@ -49,7 +69,7 @@ class DixaAPIService:
                     }
                     
         except Exception as e:
-            logger.error(f"Error sending message to Dixa: {str(e)}")
+            logger.error(f"   ❌ Exception sending message to Dixa: {type(e).__name__}: {str(e)}")
             return {
                 "success": False,
                 "error": str(e)
@@ -61,12 +81,22 @@ class DixaAPIService:
         Matches exact HTTP PUT from n8n "Transfer Queue" node
         """
         try:
+            logger.info("🔄 DIXA SERVICE - Transferring conversation to queue")
+            logger.info(f"   Conversation ID: {conversation_id}")
+            logger.info(f"   User ID: {user_id}")
+            logger.info(f"   Queue ID: {settings.QUEUE_ID}")
+            logger.info(f"   Base URL: {self.base_url}")
+            
             url = f"{self.base_url}/conversations/{conversation_id}/transfer/queue"
+            logger.info(f"   Full URL: {url}")
             
             payload = {
                 "queueId": settings.QUEUE_ID,
                 "userId": user_id
             }
+            
+            logger.info(f"   Transfer payload: {payload}")
+            logger.info("   Making HTTP PUT request...")
             
             async with httpx.AsyncClient() as client:
                 response = await client.put(
@@ -75,15 +105,21 @@ class DixaAPIService:
                     json=payload
                 )
                 
+                logger.info(f"   ✅ HTTP Response received: {response.status_code}")
+                logger.info(f"   Response headers: {dict(response.headers)}")
+                
                 if response.status_code == 200:
-                    logger.info(f"Successfully transferred conversation {conversation_id} to queue")
+                    response_data = response.json() if response.content else {}
+                    logger.info(f"   ✅ Successfully transferred conversation {conversation_id} to queue")
+                    logger.info(f"   Response data: {response_data}")
                     return {
                         "success": True,
-                        "response": response.json() if response.content else {},
+                        "response": response_data,
                         "status_code": response.status_code
                     }
                 else:
-                    logger.error(f"Queue transfer error: {response.status_code} - {response.text}")
+                    logger.error(f"   ❌ Queue transfer error: {response.status_code}")
+                    logger.error(f"   Response text: {response.text}")
                     return {
                         "success": False,
                         "error": f"HTTP {response.status_code}: {response.text}",
@@ -91,7 +127,7 @@ class DixaAPIService:
                     }
                     
         except Exception as e:
-            logger.error(f"Error transferring to queue: {str(e)}")
+            logger.error(f"   ❌ Exception transferring to queue: {type(e).__name__}: {str(e)}")
             return {
                 "success": False,
                 "error": str(e)
