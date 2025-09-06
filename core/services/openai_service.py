@@ -20,8 +20,19 @@ class OpenAIService:
         try:
             logger.info("🤖 OPENAI SERVICE - Starting message processing")
             logger.info(f"   Assistant ID: {self.assistant_id}")
+            logger.info(f"   API Key configured: {'Yes' if settings.OPENAI_API_KEY else 'No'}")
+            logger.info(f"   API Key length: {len(settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else 0}")
             logger.info(f"   Input text length: {len(user_text)} chars")
             logger.info(f"   Input preview: {user_text[:100]}{'...' if len(user_text) > 100 else ''}")
+            
+            # Validate configuration
+            if not settings.OPENAI_API_KEY:
+                logger.error("   ❌ OPENAI_API_KEY not configured")
+                return "Error: OpenAI API key not configured"
+            
+            if not self.assistant_id:
+                logger.error("   ❌ OPENAI_ASSISTANT_ID not configured")
+                return "Error: OpenAI Assistant ID not configured"
             
             # Create a thread
             logger.info("   Creating OpenAI thread...")
@@ -49,11 +60,12 @@ class OpenAIService:
             logger.info(f"   ✅ Run created: {run.id}")
             logger.info(f"   Initial status: {run.status}")
             
-            # Wait for completion
+            # Wait for completion with timeout
             poll_count = 0
-            while run.status in ["queued", "in_progress"]:
+            max_polls = 60  # Maximum 60 seconds timeout
+            while run.status in ["queued", "in_progress"] and poll_count < max_polls:
                 poll_count += 1
-                logger.info(f"   Polling run status... (attempt {poll_count}) - Status: {run.status}")
+                logger.info(f"   Polling run status... (attempt {poll_count}/{max_polls}) - Status: {run.status}")
                 
                 run = await self.client.beta.threads.runs.retrieve(
                     thread_id=thread.id,
@@ -64,6 +76,11 @@ class OpenAIService:
                 if run.status in ["queued", "in_progress"]:
                     import asyncio
                     await asyncio.sleep(1)
+            
+            # Check for timeout
+            if poll_count >= max_polls:
+                logger.error(f"   ❌ OpenAI run timed out after {max_polls} seconds")
+                return "Error: OpenAI processing timed out"
             
             logger.info(f"   Final run status: {run.status}")
             
@@ -96,4 +113,8 @@ class OpenAIService:
             
         except Exception as e:
             logger.error(f"   ❌ OpenAI API error: {type(e).__name__}: {str(e)}")
+            logger.error(f"   Full exception details: {repr(e)}")
+            # Log additional context for debugging
+            logger.error(f"   Assistant ID used: {self.assistant_id}")
+            logger.error(f"   API Key present: {'Yes' if settings.OPENAI_API_KEY else 'No'}")
             return f"Error: {str(e)}"
