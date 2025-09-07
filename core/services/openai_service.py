@@ -1,4 +1,5 @@
 import logging
+import json
 from openai import AsyncOpenAI
 from config import settings
 
@@ -38,6 +39,7 @@ class OpenAIService:
             # Call OpenAI Prompts API
             logger.info("   Calling OpenAI Prompts API...")
             response = await self.client.responses.create(
+                model=getattr(settings, "OPENAI_MODEL", "gpt-5"),
                 prompt={
                     "id": self.prompt_id,
                     "version": "5",
@@ -47,15 +49,30 @@ class OpenAIService:
             
             logger.info("   ✅ OpenAI Prompts response received")
             
-            # Extract response content
-            if response and hasattr(response, 'content'):
+            # Extract response content (prefer the new Responses API output_text)
+            ai_response = None
+            if response and hasattr(response, "output_text") and response.output_text:
+                ai_response = response.output_text
+            elif response and hasattr(response, "content"):
                 ai_response = response.content
-                logger.info(f"   Response length: {len(ai_response)} chars")
-                logger.info(f"   Response preview: {ai_response[:200]}{'...' if len(ai_response) > 200 else ''}")
-                return ai_response
-            else:
+
+            if not ai_response:
                 logger.error("   ❌ No content in OpenAI response")
                 return "Error: No response content received from OpenAI"
+
+            # If the prompt returns JSON, extract the 'email' field when available
+            try:
+                parsed = json.loads(ai_response)
+                if isinstance(parsed, dict) and "email" in parsed:
+                    logger.info("   Detected JSON response; extracting 'email' field")
+                    ai_response = parsed["email"]
+            except Exception:
+                # Not JSON; keep the raw text
+                pass
+
+            logger.info(f"   Response length: {len(ai_response)} chars")
+            logger.info(f"   Response preview: {ai_response[:200]}{'...' if len(ai_response) > 200 else ''}")
+            return ai_response
             
         except Exception as e:
             logger.error(f"   ❌ OpenAI Prompts API error: {type(e).__name__}: {str(e)}")
