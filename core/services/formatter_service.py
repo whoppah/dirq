@@ -14,17 +14,25 @@ class MessageFormatter:
         # Fix webhook URLs to use actual base URL instead of placeholder
         base_url = settings.WEBHOOK_BASE_URL
         self.webhook_content = f"""
-<p>Please confirm your response:</p>
-
-<a href="{base_url}/respond?answer=yes"
-   style="display: inline-block; padding: 10px 20px; margin-right: 10px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px;">
-   Yes
+<p><strong>Please confirm your response:</strong></p>
+<div style="margin: 15px 0;">
+<table cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td style="padding-right: 10px;">
+<a href="{base_url}/respond?answer=yes" 
+   style="display: inline-block; padding: 12px 24px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; border: 2px solid #28a745;">
+✅ Yes
 </a>
-
-<a href="{base_url}/responded_false"
-   style="display: inline-block; padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 4px;">
-   No
+</td>
+<td>
+<a href="{base_url}/responded_false" 
+   style="display: inline-block; padding: 12px 24px; background-color: #dc3545; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; border: 2px solid #dc3545;">
+❌ No
 </a>
+</td>
+</tr>
+</table>
+</div>
 """
     
     def clean_text_for_json(self, text: str) -> str:
@@ -58,17 +66,25 @@ class MessageFormatter:
             logger.info("   Generating dynamic webhook buttons...")
             if user_id and conversation_id:
                 webhook_content = f"""
-<p>Please confirm your response:</p>
-
-<a href="{settings.WEBHOOK_BASE_URL}/respond?answer=yes&user_id={user_id}&conversation_id={conversation_id}"
-   style="display: inline-block; padding: 10px 20px; margin-right: 10px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px;">
-   Yes
+<p><strong>Please confirm your response:</strong></p>
+<div style="margin: 15px 0;">
+<table cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td style="padding-right: 10px;">
+<a href="{settings.WEBHOOK_BASE_URL}/respond?answer=yes&user_id={user_id}&conversation_id={conversation_id}" 
+   style="display: inline-block; padding: 12px 24px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; border: 2px solid #28a745;">
+✅ Yes
 </a>
-
-<a href="{settings.WEBHOOK_BASE_URL}/responded_false?user_id={user_id}&conversation_id={conversation_id}"
-   style="display: inline-block; padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 4px;">
-   No
+</td>
+<td>
+<a href="{settings.WEBHOOK_BASE_URL}/responded_false?user_id={user_id}&conversation_id={conversation_id}" 
+   style="display: inline-block; padding: 12px 24px; background-color: #dc3545; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; border: 2px solid #dc3545;">
+❌ No
 </a>
+</td>
+</tr>
+</table>
+</div>
 """
                 logger.info(f"   Using dynamic parameters: user_id={user_id}, conversation_id={conversation_id}")
             else:
