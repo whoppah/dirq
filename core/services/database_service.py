@@ -85,7 +85,9 @@ class MongoDBService:
         try:
             if not self.client:
                 return True
+            # Use _id for uniqueness so we don't rely on create_index permissions
             self.idempotency_collection.insert_one({
+                "_id": message_id,
                 "message_id": message_id,
                 "reserved_at": datetime.utcnow()
             })
@@ -106,6 +108,22 @@ class MongoDBService:
         try:
             if not self.client:
                 return
-            self.idempotency_collection.delete_one({"message_id": message_id})
+            self.idempotency_collection.delete_one({"_id": message_id})
         except Exception as e:
             logger.warning(f"Error releasing idempotency reservation: {str(e)}")
+
+    async def has_event_been_processed(self, event_id: str) -> bool:
+        """
+        Check if an event_id has already been processed (message sent and logged).
+        """
+        try:
+            if not self.client:
+                return False
+            doc = self.conversations_collection.find_one({
+                "event_id": event_id,
+                "dixa_message_sent": True
+            })
+            return doc is not None
+        except Exception as e:
+            logger.error(f"Error checking if event was already processed: {str(e)}")
+            return False

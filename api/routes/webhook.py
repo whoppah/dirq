@@ -27,26 +27,28 @@ async def dixa_webhook(payload: WebhookPayload):
         logger.info(f"📝 Message Text: {payload.data.text[:100]}{'...' if len(payload.data.text) > 100 else ''}")
         logger.info("=" * 80)
         
-        # Idempotency: acquire reservation to avoid concurrent duplicates
-        reservation_acquired = await services.mongodb_service.try_reserve_message(payload.data.message_id)
+        # Idempotency: acquire reservation to avoid concurrent duplicates (use event_id)
+        reservation_acquired = await services.mongodb_service.try_reserve_message(payload.event_id)
         if not reservation_acquired:
             logger.info("🛑 DUPLICATE WEBHOOK - Reservation not acquired (already processing), skipping")
             return {
                 "status": "duplicate_ignored",
                 "conversation_id": payload.data.conversation.csid,
                 "message_id": payload.data.message_id,
-                "reason": "Another worker is already processing this message"
+                "event_id": payload.event_id,
+                "reason": "Another worker is already processing this event"
             }
 
         # If we previously processed and sent, skip (release reservation)
-        already_sent = await services.mongodb_service.has_message_been_sent(payload.data.message_id)
+        already_sent = await services.mongodb_service.has_event_been_processed(payload.event_id)
         if already_sent:
             logger.info("🛑 DUPLICATE WEBHOOK - Message already processed and sent, skipping")
-            await services.mongodb_service.release_reservation(payload.data.message_id)
+            await services.mongodb_service.release_reservation(payload.event_id)
             return {
                 "status": "duplicate_ignored",
                 "conversation_id": payload.data.conversation.csid,
                 "message_id": payload.data.message_id,
+                "event_id": payload.event_id,
                 "reason": "Message already processed and sent"
             }
 
@@ -150,6 +152,7 @@ async def dixa_webhook(payload: WebhookPayload):
                     log_data = {
                         "conversation_id": payload.data.conversation.csid,
                         "message_id": payload.data.message_id,
+                        "event_id": payload.event_id,
                         "user_id": payload.data.author.id,
                         "ai_response": ai_response,
                         "is_initial_message": is_initial_message,
@@ -181,12 +184,13 @@ async def dixa_webhook(payload: WebhookPayload):
                     logger.error("❌ DIXA SEND FAILED - Processing completed but message not sent")
                     logger.error(f"   Error: {dixa_result['error']}")
                     # Release idempotency reservation on failure to allow retry
-                    await services.mongodb_service.release_reservation(payload.data.message_id)
+                    await services.mongodb_service.release_reservation(payload.event_id)
                     logger.info("=" * 80)
                     return {
                         "status": "processed_but_not_sent",
                         "conversation_id": payload.data.conversation.csid,
                         "message_id": payload.data.message_id,
+                        "event_id": payload.event_id,
                         "isInitialMessage": is_initial_message,
                         "ai_response": ai_response,
                         "dixa_error": dixa_result["error"],
@@ -196,7 +200,7 @@ async def dixa_webhook(payload: WebhookPayload):
                 logger.error("❌ RESPONSE FORMATTING FAILED")
                 logger.error(f"   Error: {formatted_response.get('error', 'Unknown formatting error')}")
                 # Release idempotency reservation on error
-                await services.mongodb_service.release_reservation(payload.data.message_id)
+                await services.mongodb_service.release_reservation(payload.event_id)
                 logger.info("=" * 80)
                 raise HTTPException(status_code=500, detail=f"Error formatting response: {formatted_response['error']}")
         else:
@@ -206,10 +210,13 @@ async def dixa_webhook(payload: WebhookPayload):
             logger.info(f"   Email: {author_email}")
             logger.info(f"   Initial Message: {is_initial_message}")
             logger.info("=" * 80)
+            # Release reservation since we're not processing/sending
+            await services.mongodb_service.release_reservation(payload.event_id)
             return {
                 "status": "ignored",
                 "conversation_id": payload.data.conversation.csid,
                 "message_id": payload.data.message_id,
+                "event_id": payload.event_id,
                 "author_email": author_email,
                 "isInitialMessage": is_initial_message,
                 "validation_reason": validation_reason,
@@ -224,7 +231,7 @@ async def dixa_webhook(payload: WebhookPayload):
         logger.error("=" * 80)
         # Best-effort release of reservation on unexpected exceptions
         try:
-            await services.mongodb_service.release_reservation(payload.data.message_id)
+            await services.mongodb_service.release_reservation(payload.event_id)
         except Exception:
             pass
         raise HTTPException(status_code=500, detail=f"Error processing webhook: {str(e)}")
