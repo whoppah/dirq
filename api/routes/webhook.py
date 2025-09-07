@@ -5,6 +5,7 @@ import json
 
 from models.webhook import WebhookPayload
 from api.dependencies import services
+from config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
