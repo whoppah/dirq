@@ -84,7 +84,7 @@ class MessageFormatter:
             cleaned_response = self.clean_text_for_json(combined_content)
             logger.info(f"   Cleaned response length: {len(cleaned_response)} chars")
             
-            # Prepare Dixa API payload (exact structure from n8n)
+            # Prepare Dixa API payload - send as agent message instead of outbound to user
             logger.info("   Building Dixa API payload...")
             payload = {
                 "agentId": settings.AGENT_ID,
@@ -93,13 +93,15 @@ class MessageFormatter:
                     "value": cleaned_response,
                     "contentType": "text/html"
                 },
-                "_type": "Outbound"
+                "_type": "Agent"  # Changed from "Outbound" to "Agent" to avoid EndUserNotFound
             }
+            
+            logger.info("   Using Agent message type to avoid EndUserNotFound error")
             
             logger.info(f"   ✅ Payload created successfully:")
             logger.info(f"      Agent ID: {settings.AGENT_ID}")
             logger.info(f"      Content Type: text/html")
-            logger.info(f"      Message Type: Outbound")
+            logger.info(f"      Message Type: Agent")
             logger.info(f"      Final payload size: {len(str(payload))} chars")
             
             return {
