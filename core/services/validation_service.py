@@ -13,6 +13,8 @@ class ValidationService:
         self.allowed_domains = ["whoppah.com", "whoppah.nl"]
         # Also allow emails containing "whoppah" in the domain
         self.whoppah_patterns = ["whoppah"]
+        # Additional allowed emails
+        self.allowed_emails = ["mrlkns@gmail.com"]
     
     def is_email_from_allowed_domain(self, email: str) -> Tuple[bool, str]:
         """
@@ -28,9 +30,16 @@ class ValidationService:
             if not email or not isinstance(email, str):
                 return False, "Invalid email format"
             
+            email_lower = email.lower().strip()
+            
+            # Check if email is in allowed emails list
+            if email_lower in self.allowed_emails:
+                logger.info(f"Email validated (whitelist): {email_lower}")
+                return True, f"Allowed email: {email_lower}"
+            
             # Extract domain from email
             email_pattern = r'^[^@]+@([^@]+)$'
-            match = re.match(email_pattern, email.lower().strip())
+            match = re.match(email_pattern, email_lower)
             
             if not match:
                 return False, "Invalid email format"
