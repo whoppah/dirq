@@ -18,6 +18,57 @@ class DixaAPIService:
             "Content-Type": "application/json"
         }
     
+    async def claim_conversation(self, conversation_id: int, agent_id: str, force: bool = False) -> dict:
+        """
+        Claim a conversation for an agent before sending messages
+        Required to avoid EndUserNotFound errors
+        """
+        try:
+            logger.info("🔒 DIXA SERVICE - Claiming conversation for agent")
+            logger.info(f"   Conversation ID: {conversation_id}")
+            logger.info(f"   Agent ID: {agent_id}")
+            logger.info(f"   Force claim: {force}")
+            
+            url = f"{self.base_url}/conversations/{conversation_id}/claim"
+            payload = {
+                "agentId": agent_id,
+                "force": force
+            }
+            
+            logger.info(f"   Full URL: {url}")
+            logger.info("   Making HTTP POST request...")
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    url,
+                    headers=self.headers,
+                    json=payload
+                )
+                
+                logger.info(f"   ✅ HTTP Response received: {response.status_code}")
+                
+                if response.status_code == 200:
+                    logger.info(f"   ✅ Successfully claimed conversation {conversation_id}")
+                    return {
+                        "success": True,
+                        "status_code": response.status_code
+                    }
+                else:
+                    logger.error(f"   ❌ Claim conversation error: {response.status_code}")
+                    logger.error(f"   Response text: {response.text}")
+                    return {
+                        "success": False,
+                        "error": f"HTTP {response.status_code}: {response.text}",
+                        "status_code": response.status_code
+                    }
+                    
+        except Exception as e:
+            logger.error(f"   ❌ Exception claiming conversation: {type(e).__name__}: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
     async def send_message(self, conversation_id: int, dixa_payload: dict) -> dict:
         """
         Send message to Dixa conversation

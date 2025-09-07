@@ -62,7 +62,25 @@ async def dixa_webhook(payload: WebhookPayload):
             logger.info("🤖 AI PROCESSING STARTED:")
             logger.info(f"   Processing message: '{payload.data.text}'")
             
+            # First claim the conversation for the agent
+            logger.info("🔒 CLAIMING CONVERSATION:")
+            logger.info(f"   Claiming conversation {payload.data.conversation.csid} for agent {settings.AGENT_ID}")
+            
+            claim_result = await services.dixa_service.claim_conversation(
+                payload.data.conversation.csid,
+                settings.AGENT_ID,
+                force=False  # Don't force to avoid taking over assigned conversations
+            )
+            
+            if not claim_result["success"]:
+                logger.error(f"   ❌ Failed to claim conversation: {claim_result.get('error', 'Unknown error')}")
+                # Continue anyway - conversation might already be claimed
+                logger.info("   Continuing with message processing despite claim failure...")
+            else:
+                logger.info("   ✅ Conversation claimed successfully")
+            
             # Process with OpenAI Prompts (using customer name from payload)
+            logger.info("🤖 AI PROCESSING:")
             logger.info("   Calling OpenAI service...")
             try:
                 # Extract customer name from payload

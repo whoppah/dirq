@@ -40,7 +40,7 @@ class OpenAIService:
             response = await self.client.responses.create(
                 prompt={
                     "id": self.prompt_id,
-                    "version": "2",
+                    "version": "5",
                     "variables": prompt_variables
                 }
             )
