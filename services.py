@@ -3,9 +3,9 @@ import json
 import httpx
 from openai import AsyncOpenAI
 from pymongo import MongoClient
-from config import settings
 import logging
 from datetime import datetime
+from config import settings
 
 logger = logging.getLogger(__name__)
 
