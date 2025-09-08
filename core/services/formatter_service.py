@@ -66,7 +66,7 @@ class MessageFormatter:
             logger.info("   Generating dynamic webhook buttons...")
             if user_id and conversation_id:
                 webhook_content = f"""
-<p><strong>Please confirm your response:</strong></p>
+<p><strong>Did we resolve your problem?</strong></p>
 <div style="margin: 15px 0;">
 <table cellpadding="0" cellspacing="0" border="0">
 <tr>
