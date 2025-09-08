@@ -112,7 +112,7 @@ class MessageFormatter:
             payload = {
                 "agentId": settings.AGENT_ID,
                 "content": {
-                    "_type": "Text",
+                    "_type": "Html",
                     "value": cleaned_response,
                     "contentType": "text/html"
                 },
