@@ -11,12 +11,35 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/dixa_conversation_started")
-async def dixa_webhook(payload: WebhookPayload):
+async def dixa_webhook(request: Request):
     """
     Main webhook endpoint that receives Dixa conversation messages
     Replicates the exact functionality from n8n workflow
     """
     try:
+        # Get raw request body for logging
+        body = await request.body()
+        raw_payload = body.decode('utf-8')
+        
+        logger.info("=" * 80)
+        logger.info("🔔 RAW WEBHOOK RECEIVED")
+        logger.info(f"📦 Raw payload length: {len(raw_payload)} chars")
+        logger.info(f"📄 Raw payload: {raw_payload}")
+        logger.info("=" * 80)
+        
+        # Parse and validate payload
+        try:
+            payload_dict = json.loads(raw_payload)
+            payload = WebhookPayload.model_validate(payload_dict)
+            logger.info("✅ Payload validation successful")
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ JSON decode error: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
+        except Exception as e:
+            logger.error(f"❌ Payload validation error: {str(e)}")
+            logger.error(f"🔍 Payload structure: {json.dumps(payload_dict, indent=2) if 'payload_dict' in locals() else 'Could not parse JSON'}")
+            raise HTTPException(status_code=422, detail=f"Payload validation failed: {str(e)}")
+        
         # Log incoming webhook details
         logger.info("=" * 80)
         logger.info("🔔 WEBHOOK RECEIVED - Dixa Conversation Started")
