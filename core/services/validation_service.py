@@ -15,6 +15,8 @@ class ValidationService:
         self.whoppah_patterns = ["whoppah"]
         # Additional allowed emails
         self.allowed_emails = ["mrlkns@gmail.com", "sariewalburghschmidt@hotmail.com"]
+        # Excluded emails (blacklist)
+        self.excluded_emails = []
     
     def is_email_from_allowed_domain(self, email: str) -> Tuple[bool, str]:
         """
