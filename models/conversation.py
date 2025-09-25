@@ -13,7 +13,7 @@ class Queue(BaseModel):
 
 class ContactPoint(BaseModel):
     id: str
-    name: str
+    name: Optional[str] = None
     email: str
     phone: Optional[str] = None
     roles: List[str] = []

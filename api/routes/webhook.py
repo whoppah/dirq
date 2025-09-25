@@ -109,8 +109,8 @@ async def dixa_webhook(payload: WebhookPayload):
             logger.info("🤖 AI PROCESSING:")
             logger.info("   Calling OpenAI service...")
             try:
-                # Extract customer name from payload
-                customer_name = payload.data.author.name
+                # Extract customer name from payload (fallback to "customer" if null)
+                customer_name = payload.data.author.name or "customer"
                 logger.info(f"   Customer name extracted: {customer_name}")
                 
                 ai_response = await services.openai_service.process_message(
