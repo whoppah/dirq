@@ -250,11 +250,16 @@ async def dixa_webhook(request: Request):
         logger.error("💥 WEBHOOK ERROR - Unexpected exception occurred")
         logger.error(f"   Exception Type: {type(e).__name__}")
         logger.error(f"   Exception Message: {str(e)}")
-        logger.error(f"   Conversation ID: {getattr(payload.data.conversation, 'csid', 'Unknown') if hasattr(payload, 'data') else 'Unknown'}")
+        # Safely access payload attributes only if payload exists
+        if 'payload' in locals() and hasattr(payload, 'data') and hasattr(payload.data, 'conversation'):
+            logger.error(f"   Conversation ID: {getattr(payload.data.conversation, 'csid', 'Unknown')}")
+        else:
+            logger.error("   Conversation ID: Unknown (payload not available)")
         logger.error("=" * 80)
         # Best-effort release of reservation on unexpected exceptions
         try:
-            await services.mongodb_service.release_reservation(payload.event_id)
+            if 'payload' in locals() and hasattr(payload, 'event_id'):
+                await services.mongodb_service.release_reservation(payload.event_id)
         except Exception:
             pass
         raise HTTPException(status_code=500, detail=f"Error processing webhook: {str(e)}")
