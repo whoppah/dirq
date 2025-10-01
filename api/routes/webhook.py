@@ -30,7 +30,16 @@ async def dixa_webhook(payload: WebhookPayload):
         # Idempotency: acquire reservation to avoid concurrent duplicates (use event_id)
         reservation_acquired = await services.mongodb_service.try_reserve_message(payload.event_id)
         if not reservation_acquired:
-            logger.info("🛑 DUPLICATE WEBHOOK - Reservation not acquired (already processing), skipping")
+            logger.info("🛑 DUPLICATE WEBHOOK - Reservation not acquired (already processing or DB unavailable), skipping")
+
+            # Check if MongoDB is connected
+            if not services.mongodb_service.client:
+                logger.error("❌ MongoDB connection is DOWN - cannot process webhooks safely")
+                raise HTTPException(
+                    status_code=503,
+                    detail="Service temporarily unavailable: Database connection required for idempotency"
+                )
+
             return {
                 "status": "duplicate_ignored",
                 "conversation_id": payload.data.conversation.csid,

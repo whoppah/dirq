@@ -14,17 +14,25 @@ class MongoDBService:
     
     def __init__(self):
         try:
-            self.client = MongoClient(settings.MONGODB_URL)
+            logger.info(f"Attempting to connect to MongoDB: {settings.MONGODB_URL[:20]}...")
+            self.client = MongoClient(
+                settings.MONGODB_URL,
+                serverSelectionTimeoutMS=5000,  # 5 second timeout
+                connectTimeoutMS=5000
+            )
+            # Test the connection
+            self.client.admin.command('ping')
+
             # Extract database name from URL or use default
             if settings.MONGODB_URL and '/' in settings.MONGODB_URL:
-                db_name = settings.MONGODB_URL.split('/')[-1]
+                db_name = settings.MONGODB_URL.split('/')[-1].split('?')[0]  # Remove query params
                 if db_name and db_name != '':
                     self.db = self.client[db_name]
                 else:
                     self.db = self.client['dirq']  # fallback
             else:
                 self.db = self.client['dirq']  # fallback
-            
+
             self.conversations_collection = self.db.conversations
             # Collection for idempotency tokens
             self.idempotency_collection = self.db.idempotency
@@ -33,10 +41,11 @@ class MongoDBService:
                 self.idempotency_collection.create_index("message_id", unique=True)
             except Exception as idx_err:
                 logger.warning(f"Idempotency index creation warning: {idx_err}")
-            logger.info(f"Connected to MongoDB database: {self.db.name}")
+            logger.info(f"✅ Successfully connected to MongoDB database: {self.db.name}")
         except Exception as e:
-            logger.error(f"Failed to connect to MongoDB: {str(e)}")
+            logger.error(f"❌ Failed to connect to MongoDB: {str(e)}")
             self.client = None
+            self.db = None
     
     async def log_conversation(self, conversation_data: dict) -> dict:
         """
@@ -89,25 +98,28 @@ class MongoDBService:
         """
         Attempt to reserve processing for a given event_id. Returns True if
         reservation acquired, False if already reserved elsewhere.
-        If MongoDB is unavailable, allow processing to proceed (return True).
+        CRITICAL: If MongoDB is unavailable, we BLOCK (return False) to prevent duplicates.
         """
         try:
             if not self.client:
-                return True
+                logger.error("MongoDB not connected - blocking webhook to prevent duplicate sends")
+                return False
             # Use _id for uniqueness so we don't rely on create_index permissions
             self.idempotency_collection.insert_one({
                 "_id": event_id,
                 "event_id": event_id,
                 "reserved_at": datetime.utcnow()
             })
+            logger.info(f"✅ Reservation acquired for event {event_id}")
             return True
         except DuplicateKeyError:
             # Already reserved by another concurrent process
+            logger.warning(f"⚠️ Duplicate detected: Event {event_id} already reserved")
             return False
         except Exception as e:
-            logger.error(f"Error reserving event idempotency token: {str(e)}")
-            # Fail-open to avoid blocking the flow completely
-            return True
+            logger.error(f"❌ Error reserving event idempotency token: {str(e)}")
+            # Fail-closed to prevent duplicate sends when DB has issues
+            return False
 
     async def release_reservation(self, event_id: str) -> None:
         """
