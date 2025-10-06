@@ -12,27 +12,33 @@ class OpenAIService:
         )
         self.prompt_id = settings.OPENAI_PROMPT_ID
     
-    async def process_message(self, user_text: str, customer_name: str = None) -> str:
+    async def process_message(self, user_text: str, customer_name: str = None, conversation_id: int = None) -> str:
         """
         Process user message using OpenAI Prompts API
-        Uses prompt templates with customer name variable
+        Uses prompt templates with customer name and conversation ID variables
         """
         try:
             logger.info("🤖 OPENAI SERVICE - Starting message processing with prompts")
             logger.info(f"   Prompt ID: {self.prompt_id}")
             logger.info(f"   Customer Name: {customer_name}")
+            logger.info(f"   Conversation ID: {conversation_id}")
             logger.info(f"   Input text length: {len(user_text)} chars")
             logger.info(f"   Input preview: {user_text[:100]}{'...' if len(user_text) > 100 else ''}")
-            
+
             # Prepare prompt variables
             prompt_variables = {
                 "email": user_text
             }
-            
+
             # Add customer name if available
             if customer_name:
                 prompt_variables["customerFirstName"] = customer_name
                 logger.info(f"   Added customer name variable: {customer_name}")
+
+            # Add conversation ID if available
+            if conversation_id:
+                prompt_variables["conversationId"] = str(conversation_id)
+                logger.info(f"   Added conversation ID variable: {conversation_id}")
             
             logger.info(f"   Prompt variables: {list(prompt_variables.keys())}")
             

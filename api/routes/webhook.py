@@ -123,8 +123,9 @@ async def dixa_webhook(payload: WebhookPayload):
                 logger.info(f"   Customer name extracted: {customer_name}")
                 
                 ai_response = await services.openai_service.process_message(
-                    payload.data.text, 
-                    customer_name=customer_name
+                    payload.data.text,
+                    customer_name=customer_name,
+                    conversation_id=payload.data.conversation.csid
                 )
                 logger.info(f"   ✅ OpenAI Response received: {ai_response[:200]}{'...' if len(ai_response) > 200 else ''}")
             except Exception as openai_error:
