@@ -44,7 +44,7 @@ class OpenAIService:
                 model=getattr(settings, "OPENAI_MODEL", "gpt-5"),
                 prompt={
                     "id": self.prompt_id,
-                    "version": "5",
+                    "version": "6",  # Updated to version 6 for improved prompt
                     "variables": prompt_variables
                 }
             )
