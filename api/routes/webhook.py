@@ -24,13 +24,26 @@ async def dixa_webhook(payload: WebhookPayload):
         logger.info(f"📧 Author Email: {payload.data.author.email}")
         logger.info(f"👤 Author ID: {payload.data.author.id}")
         logger.info(f"💬 Message ID: {payload.data.message_id}")
+        logger.info(f"🆔 Event ID: {payload.event_id}")
         logger.info(f"📝 Message Text: {payload.data.text[:100]}{'...' if len(payload.data.text) > 100 else ''}")
         logger.info("=" * 80)
-        
-        # Idempotency: acquire reservation to avoid concurrent duplicates (use event_id)
+
+        # Step 1: Check if we already processed this event (fastest check)
+        already_processed = await services.mongodb_service.has_event_been_processed(payload.event_id)
+        if already_processed:
+            logger.info("🛑 DUPLICATE WEBHOOK - Event already processed (found in conversations), skipping")
+            return {
+                "status": "duplicate_ignored",
+                "conversation_id": payload.data.conversation.csid,
+                "message_id": payload.data.message_id,
+                "event_id": payload.event_id,
+                "reason": "Event already processed (logged in database)"
+            }
+
+        # Step 2: Try to acquire reservation for this event (prevents concurrent processing)
         reservation_acquired = await services.mongodb_service.try_reserve_message(payload.event_id)
         if not reservation_acquired:
-            logger.info("🛑 DUPLICATE WEBHOOK - Reservation not acquired (already processing or DB unavailable), skipping")
+            logger.info("🛑 DUPLICATE WEBHOOK - Reservation not acquired (concurrent request), skipping")
 
             # Check if MongoDB is connected
             if not services.mongodb_service.client:
@@ -46,19 +59,6 @@ async def dixa_webhook(payload: WebhookPayload):
                 "message_id": payload.data.message_id,
                 "event_id": payload.event_id,
                 "reason": "Another worker is already processing this event"
-            }
-
-        # If we previously processed this event, skip (release reservation)
-        already_processed = await services.mongodb_service.has_event_been_processed(payload.event_id)
-        if already_processed:
-            logger.info("🛑 DUPLICATE WEBHOOK - Event already processed, skipping")
-            await services.mongodb_service.release_reservation(payload.event_id)
-            return {
-                "status": "duplicate_ignored",
-                "conversation_id": payload.data.conversation.csid,
-                "message_id": payload.data.message_id,
-                "event_id": payload.event_id,
-                "reason": "Event already processed (logged in database)"
             }
 
         # Extract timestamps exactly as in n8n Python code
