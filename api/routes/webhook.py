@@ -48,17 +48,17 @@ async def dixa_webhook(payload: WebhookPayload):
                 "reason": "Another worker is already processing this event"
             }
 
-        # If we previously processed and sent, skip (release reservation)
-        already_sent = await services.mongodb_service.has_event_been_processed(payload.event_id)
-        if already_sent:
-            logger.info("🛑 DUPLICATE WEBHOOK - Message already processed and sent, skipping")
+        # If we previously processed this event, skip (release reservation)
+        already_processed = await services.mongodb_service.has_event_been_processed(payload.event_id)
+        if already_processed:
+            logger.info("🛑 DUPLICATE WEBHOOK - Event already processed, skipping")
             await services.mongodb_service.release_reservation(payload.event_id)
             return {
                 "status": "duplicate_ignored",
                 "conversation_id": payload.data.conversation.csid,
                 "message_id": payload.data.message_id,
                 "event_id": payload.event_id,
-                "reason": "Message already processed and sent"
+                "reason": "Event already processed (logged in database)"
             }
 
         # Extract timestamps exactly as in n8n Python code
@@ -219,9 +219,26 @@ async def dixa_webhook(payload: WebhookPayload):
             logger.info(f"   Reason: {validation_reason}")
             logger.info(f"   Email: {author_email}")
             logger.info(f"   Initial Message: {is_initial_message}")
+
+            # Log skipped message to prevent re-processing on duplicate webhooks
+            logger.info("💾 DATABASE LOGGING (SKIPPED MESSAGE):")
+            log_data = {
+                "conversation_id": payload.data.conversation.csid,
+                "message_id": payload.data.message_id,
+                "event_id": payload.event_id,
+                "user_id": payload.data.author.id,
+                "ai_response": None,
+                "is_initial_message": is_initial_message,
+                "time_diff_ms": time_diff,
+                "dixa_message_sent": False,
+                "original_text": payload.data.text,
+                "skipped_reason": validation_reason
+            }
+
+            log_result = await services.mongodb_service.log_conversation(log_data)
+            logger.info(f"   ✅ Skipped message logged: {log_result.get('success', False)}")
             logger.info("=" * 80)
-            # Release reservation since we're not processing/sending
-            await services.mongodb_service.release_reservation(payload.event_id)
+
             return {
                 "status": "ignored",
                 "conversation_id": payload.data.conversation.csid,

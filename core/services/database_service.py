@@ -135,14 +135,15 @@ class MongoDBService:
 
     async def has_event_been_processed(self, event_id: str) -> bool:
         """
-        Check if an event_id has already been processed (message sent and logged).
+        Check if an event_id has already been processed (logged to conversations).
+        Returns True if the event exists in conversations collection, regardless of
+        whether a message was sent (includes both processed and skipped events).
         """
         try:
             if not self.client:
                 return False
             doc = self.conversations_collection.find_one({
-                "event_id": event_id,
-                "dixa_message_sent": True
+                "event_id": event_id
             })
             return doc is not None
         except Exception as e:

@@ -30,6 +30,7 @@ class Conversation(BaseModel):
     assignee: Optional[ContactPoint] = None
     subject: str
     tags: List[Tag] = []
+    custom_attributes: List[Any] = []
     created_at: str
 
 class MessageContent(BaseModel):
