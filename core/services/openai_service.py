@@ -36,9 +36,6 @@ class OpenAIService:
                 prompt_variables["customerFirstName"] = customer_name
                 logger.info(f"   Added customer name variable: {customer_name}")
 
-            # Note: conversationId removed - not supported by current prompt template
-            # If you need it, add the variable to your OpenAI prompt template first
-
             logger.info(f"   Prompt variables: {list(prompt_variables.keys())}")
             
             # Call OpenAI Prompts API
