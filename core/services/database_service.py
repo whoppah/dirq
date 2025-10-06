@@ -3,6 +3,7 @@ from datetime import datetime
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from config import settings
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -10,27 +11,29 @@ class MongoDBService:
     """
     Service for MongoDB operations
     Minimal implementation for conversation logging as per n8n Postgres node
-    Uses singleton pattern to ensure only one connection is established
+    Uses thread-safe singleton pattern to ensure only one connection is established
     """
 
     _instance = None
-    _initialized = False
+    _lock = threading.Lock()
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(MongoDBService, cls).__new__(cls)
+            with cls._lock:
+                # Double-check locking pattern
+                if cls._instance is None:
+                    logger.info("Creating new MongoDBService singleton instance")
+                    cls._instance = super(MongoDBService, cls).__new__(cls)
+                    cls._instance._init_connection()
         return cls._instance
 
-    def __init__(self):
-        # Singleton pattern - only initialize once
-        if MongoDBService._initialized:
-            return
-
+    def _init_connection(self):
+        """Initialize MongoDB connection - called only once"""
         try:
             logger.info(f"🔌 Initializing MongoDB connection: {settings.MONGODB_URL[:50]}...")
             self.client = MongoClient(
                 settings.MONGODB_URL,
-                serverSelectionTimeoutMS=5000,  # 5 second timeout
+                serverSelectionTimeoutMS=5000,
                 connectTimeoutMS=5000
             )
             # Test the connection
@@ -38,35 +41,32 @@ class MongoDBService:
 
             # Extract database name from URL or use default
             if settings.MONGODB_URL and '/' in settings.MONGODB_URL:
-                db_name = settings.MONGODB_URL.split('/')[-1].split('?')[0]  # Remove query params
+                db_name = settings.MONGODB_URL.split('/')[-1].split('?')[0]
                 if db_name and db_name != '':
                     self.db = self.client[db_name]
                 else:
-                    self.db = self.client['dirq']  # fallback
+                    self.db = self.client['dirq']
             else:
-                self.db = self.client['dirq']  # fallback
+                self.db = self.client['dirq']
 
             self.conversations_collection = self.db.conversations
-            # Collection for idempotency tokens
             self.idempotency_collection = self.db.idempotency
 
-            # Create TTL index on idempotency collection to auto-cleanup after 5 minutes
+            # Create TTL index on idempotency collection
             try:
                 self.idempotency_collection.create_index(
                     "reserved_at",
-                    expireAfterSeconds=300  # 5 minutes
+                    expireAfterSeconds=300
                 )
                 logger.info("✅ TTL index created on idempotency collection (5 min expiry)")
             except Exception as idx_err:
                 logger.warning(f"⚠️  TTL index creation warning: {idx_err}")
 
             logger.info(f"✅ MongoDB connected successfully to database: {self.db.name}")
-            MongoDBService._initialized = True
         except Exception as e:
             logger.error(f"❌ Failed to connect to MongoDB: {str(e)}")
             self.client = None
             self.db = None
-            MongoDBService._initialized = False
     
     async def log_conversation(self, conversation_data: dict) -> dict:
         """

@@ -41,7 +41,9 @@ async def dixa_webhook(payload: WebhookPayload):
             }
 
         # Step 2: Try to acquire reservation for this event (prevents concurrent processing)
+        logger.info(f"🔐 Attempting to acquire reservation for event: {payload.event_id}")
         reservation_acquired = await services.mongodb_service.try_reserve_message(payload.event_id)
+
         if not reservation_acquired:
             logger.info("🛑 DUPLICATE WEBHOOK - Reservation not acquired (concurrent request), skipping")
 
@@ -60,6 +62,9 @@ async def dixa_webhook(payload: WebhookPayload):
                 "event_id": payload.event_id,
                 "reason": "Another worker is already processing this event"
             }
+
+        logger.info(f"✅ Reservation acquired successfully for event: {payload.event_id}")
+        logger.info("📋 Starting webhook processing...")
 
         # Extract timestamps exactly as in n8n Python code
         conversation_created = payload.data.conversation.created_at
@@ -250,22 +255,30 @@ async def dixa_webhook(payload: WebhookPayload):
                 "reason": "Validation failed or not an initial message"
             }
         
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 503 from MongoDB down)
+        raise
     except Exception as e:
         logger.error("💥 WEBHOOK ERROR - Unexpected exception occurred")
         logger.error(f"   Exception Type: {type(e).__name__}")
         logger.error(f"   Exception Message: {str(e)}")
+        # Log full stack trace for debugging
+        import traceback
+        logger.error(f"   Stack Trace:\n{traceback.format_exc()}")
         # Safely access payload attributes only if payload exists
         if 'payload' in locals() and hasattr(payload, 'data') and hasattr(payload.data, 'conversation'):
             logger.error(f"   Conversation ID: {getattr(payload.data.conversation, 'csid', 'Unknown')}")
+            logger.error(f"   Event ID: {getattr(payload, 'event_id', 'Unknown')}")
         else:
-            logger.error("   Conversation ID: Unknown (payload not available)")
+            logger.error("   Payload info: Unknown (payload not available)")
         logger.error("=" * 80)
         # Best-effort release of reservation on unexpected exceptions
         try:
             if 'payload' in locals() and hasattr(payload, 'event_id'):
+                logger.info(f"   Releasing reservation for event: {payload.event_id}")
                 await services.mongodb_service.release_reservation(payload.event_id)
-        except Exception:
-            pass
+        except Exception as release_err:
+            logger.error(f"   Failed to release reservation: {release_err}")
         raise HTTPException(status_code=500, detail=f"Error processing webhook: {str(e)}")
 
 @router.get("/responded_false")
