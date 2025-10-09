@@ -13,5 +13,8 @@ class Settings:
     # Railway uses MONGO_URL, fallback to MONGODB_URL for local dev
     MONGODB_URL = os.getenv("MONGO_URL") or os.getenv("MONGODB_URL", "mongodb://localhost:27017/dirq")
     WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "https://your-webhook-url.com")
+    # Dashboard API configuration
+    DASHBOARD_API_URL = os.getenv("DASHBOARD_API_URL", "https://dashboard.production.whoppah.com/api/v1/thirdparty/dixa/mcp/user-context/")
+    DASHBOARD_API_TOKEN = os.getenv("DASHBOARD_API_TOKEN")
 
 settings = Settings()
