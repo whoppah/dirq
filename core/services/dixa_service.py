@@ -158,11 +158,13 @@ class DixaAPIService:
                 
                 logger.info(f"   ✅ HTTP Response received: {response.status_code}")
                 logger.info(f"   Response headers: {dict(response.headers)}")
-                
-                if response.status_code == 200:
+
+                if response.status_code == 204 or response.status_code == 200:
+                    # 204 No Content is the success status for transfer/queue endpoint
                     response_data = response.json() if response.content else {}
                     logger.info(f"   ✅ Successfully transferred conversation {conversation_id} to queue")
-                    logger.info(f"   Response data: {response_data}")
+                    if response_data:
+                        logger.info(f"   Response data: {response_data}")
                     return {
                         "success": True,
                         "response": response_data,
