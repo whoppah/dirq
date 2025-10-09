@@ -49,7 +49,7 @@ class OpenAIService:
             response = await self.client.responses.create(
                 prompt={
                     "id": self.prompt_id,
-                    "version": "7",
+                    "version": "8",
                     "variables": prompt_variables
                 }
             )
