@@ -37,10 +37,14 @@ class OpenAIService:
                 prompt_variables["customer_first_name"] = customer_name
                 logger.info(f"   Added customer_first_name variable: {customer_name}")
 
-            # Add user context if available
+            # Add user context if available (only if prompt supports it)
+            # NOTE: If you get "Missing prompt variables: user_context" error,
+            # you need to add user_context as a variable in your OpenAI prompt first
             if user_context:
                 prompt_variables["user_context"] = user_context
                 logger.info(f"   Added user_context variable ({len(user_context)} chars)")
+            else:
+                logger.info(f"   No user_context provided - prompt must handle missing user_context gracefully")
 
             logger.info(f"   Prompt variables: {list(prompt_variables.keys())}")
 

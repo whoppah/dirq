@@ -121,19 +121,24 @@ async def dixa_webhook(payload: WebhookPayload):
             
             # Fetch user context from Dashboard API before OpenAI processing
             logger.info("📊 DASHBOARD API - Fetching user context")
-            user_context_data = await services.dashboard_service.get_user_context(
-                email=payload.data.author.email,
-                orders_limit=10,
-                threads_limit=10
-            )
-
-            # Format user context for OpenAI if available
             user_context_formatted = None
-            if user_context_data:
-                user_context_formatted = services.dashboard_service.format_user_context(user_context_data)
-                logger.info(f"   ✅ User context formatted ({len(user_context_formatted)} chars)")
+
+            # Only fetch if Dashboard API token is configured
+            if settings.DASHBOARD_API_TOKEN:
+                user_context_data = await services.dashboard_service.get_user_context(
+                    email=payload.data.author.email,
+                    orders_limit=10,
+                    threads_limit=10
+                )
+
+                # Format user context for OpenAI if available
+                if user_context_data:
+                    user_context_formatted = services.dashboard_service.format_user_context(user_context_data)
+                    logger.info(f"   ✅ User context formatted ({len(user_context_formatted)} chars)")
+                else:
+                    logger.info("   ⚠️  No user context available - proceeding without it")
             else:
-                logger.info("   ⚠️  No user context available - proceeding without it")
+                logger.info("   ⚠️  Dashboard API token not configured - skipping user context fetch")
 
             # Process with OpenAI Prompts (using customer name and user context from payload)
             logger.info("🤖 AI PROCESSING:")
