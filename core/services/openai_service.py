@@ -12,7 +12,7 @@ class OpenAIService:
         )
         self.prompt_id = settings.OPENAI_PROMPT_ID
     
-    async def process_message(self, user_text: str, customer_name: str = None, conversation_id: int = None, user_context: str = None) -> str:
+    async def process_message(self, user_text: str, customer_name: str = None, conversation_id: int = None, user_context: str = None) -> dict:
         """
         Process user message using OpenAI Prompts API
         Uses prompt templates with email, customer_first_name, and user_context variables
@@ -65,22 +65,71 @@ class OpenAIService:
 
             if not ai_response:
                 logger.error("   ❌ No content in OpenAI response")
-                return "Error: No response content received from OpenAI"
+                return {
+                    "email": "Error: No response content received from OpenAI",
+                    "handoff": False
+                }
 
-            # If the prompt returns JSON, extract the 'email' field when available
+            # Try to parse JSON response
+            handoff_required = False
+            email_content = ai_response
+
             try:
                 parsed = json.loads(ai_response)
-                if isinstance(parsed, dict) and "email" in parsed:
-                    logger.info("   Detected JSON response; extracting 'email' field")
-                    ai_response = parsed["email"]
-            except Exception:
-                # Not JSON; keep the raw text
-                pass
+                if isinstance(parsed, dict):
+                    # Extract email field
+                    if "email" in parsed:
+                        logger.info("   Detected JSON response with 'email' field")
+                        email_content = parsed["email"]
 
-            logger.info(f"   Response length: {len(ai_response)} chars")
-            logger.info(f"   Response preview: {ai_response[:200]}{'...' if len(ai_response) > 200 else ''}")
-            return ai_response
+                    # Check for handoff flag
+                    if "handoff" in parsed:
+                        handoff_required = parsed["handoff"]
+                        logger.info(f"   Handoff flag detected: {handoff_required}")
+                    else:
+                        # Fallback: detect handoff from email content
+                        handoff_required = self._detect_handoff_in_content(email_content)
+                        logger.info(f"   Handoff detected from content: {handoff_required}")
+            except json.JSONDecodeError:
+                # Not JSON; keep the raw text and detect handoff from content
+                logger.info("   Response is not JSON, using raw text")
+                handoff_required = self._detect_handoff_in_content(email_content)
+                logger.info(f"   Handoff detected from content: {handoff_required}")
+
+            logger.info(f"   Response length: {len(email_content)} chars")
+            logger.info(f"   Response preview: {email_content[:200]}{'...' if len(email_content) > 200 else ''}")
+
+            return {
+                "email": email_content,
+                "handoff": handoff_required
+            }
             
         except Exception as e:
             logger.error(f"   ❌ OpenAI Prompts API error: {type(e).__name__}: {str(e)}")
-            return f"Error: {str(e)}"
+            return {
+                "email": f"Error: {str(e)}",
+                "handoff": False
+            }
+
+    def _detect_handoff_in_content(self, email_content: str) -> bool:
+        """
+        Fallback method to detect handoff from email content
+        Looks for the standard handoff phrase
+        """
+        if not email_content:
+            return False
+
+        # Standard handoff phrase from prompt
+        handoff_phrases = [
+            "I'll connect you with a colleague who can help you better with this",
+            "I'll connect you with a colleague",
+            "connect you with a colleague",
+            "colleague who can help you better"
+        ]
+
+        email_lower = email_content.lower()
+        for phrase in handoff_phrases:
+            if phrase.lower() in email_lower:
+                return True
+
+        return False

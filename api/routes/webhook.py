@@ -143,16 +143,22 @@ async def dixa_webhook(payload: WebhookPayload):
                 customer_name = payload.data.author.name or "customer"
                 logger.info(f"   Customer name extracted: {customer_name}")
 
-                ai_response = await services.openai_service.process_message(
+                openai_result = await services.openai_service.process_message(
                     payload.data.text,
                     customer_name=customer_name,
                     conversation_id=payload.data.conversation.csid,
                     user_context=user_context_formatted
                 )
+
+                ai_response = openai_result.get("email", "")
+                handoff_required = openai_result.get("handoff", False)
+
                 logger.info(f"   ✅ OpenAI Response received: {ai_response[:200]}{'...' if len(ai_response) > 200 else ''}")
+                logger.info(f"   🔄 Handoff required: {handoff_required}")
             except Exception as openai_error:
                 logger.error(f"   ❌ OpenAI service failed: {type(openai_error).__name__}: {str(openai_error)}")
                 ai_response = f"Error: OpenAI service failed - {str(openai_error)}"
+                handoff_required = False
             
             # Format response with webhook buttons (matching n8n Json converter node)
             logger.info("   Formatting response with webhook buttons...")
@@ -198,7 +204,37 @@ async def dixa_webhook(payload: WebhookPayload):
                     logger.info(f"   ✅ Database log result: {log_result.get('success', False)}")
                     if not log_result.get('success'):
                         logger.error(f"   ❌ Database error: {log_result.get('error', 'Unknown error')}")
-                    
+
+                    # Check if handoff to human agent is required
+                    if handoff_required:
+                        logger.info("🔄 HANDOFF REQUIRED - Transferring to queue")
+                        logger.info(f"   Transferring conversation {payload.data.conversation.csid} to queue...")
+
+                        transfer_result = await services.dixa_service.transfer_to_queue(
+                            payload.data.conversation.csid,
+                            payload.data.author.id
+                        )
+
+                        if transfer_result["success"]:
+                            logger.info(f"   ✅ Successfully transferred to queue")
+                        else:
+                            logger.error(f"   ❌ Queue transfer failed: {transfer_result.get('error', 'Unknown error')}")
+
+                        logger.info("🎉 WEBHOOK PROCESSING COMPLETED WITH HANDOFF!")
+                        logger.info("=" * 80)
+                        return {
+                            "status": "processed_sent_and_transferred",
+                            "conversation_id": payload.data.conversation.csid,
+                            "message_id": payload.data.message_id,
+                            "isInitialMessage": is_initial_message,
+                            "ai_response": ai_response,
+                            "dixa_response": dixa_result["response"],
+                            "message_sent": True,
+                            "logged_to_db": log_result["success"],
+                            "handoff_detected": True,
+                            "transferred_to_queue": transfer_result["success"]
+                        }
+
                     logger.info("🎉 WEBHOOK PROCESSING COMPLETED SUCCESSFULLY!")
                     logger.info("=" * 80)
                     return {
@@ -209,7 +245,8 @@ async def dixa_webhook(payload: WebhookPayload):
                         "ai_response": ai_response,
                         "dixa_response": dixa_result["response"],
                         "message_sent": True,
-                        "logged_to_db": log_result["success"]
+                        "logged_to_db": log_result["success"],
+                        "handoff_detected": False
                     }
                 else:
                     # If sending fails, still return the processed response
