@@ -12,10 +12,10 @@ class OpenAIService:
         )
         self.prompt_id = settings.OPENAI_PROMPT_ID
     
-    async def process_message(self, user_text: str, customer_name: str = None, conversation_id: int = None) -> str:
+    async def process_message(self, user_text: str, customer_name: str = None, conversation_id: int = None, user_context: str = None) -> str:
         """
         Process user message using OpenAI Prompts API
-        Uses prompt templates with email and customerFirstName variables
+        Uses prompt templates with email, customerFirstName, and userContext variables
         Note: conversation_id parameter accepted but not used (prompt doesn't support it)
         """
         try:
@@ -23,6 +23,7 @@ class OpenAIService:
             logger.info(f"   Prompt ID: {self.prompt_id}")
             logger.info(f"   Customer Name: {customer_name}")
             logger.info(f"   Conversation ID: {conversation_id}")
+            logger.info(f"   Has User Context: {bool(user_context)}")
             logger.info(f"   Input text length: {len(user_text)} chars")
             logger.info(f"   Input preview: {user_text[:100]}{'...' if len(user_text) > 100 else ''}")
 
@@ -35,6 +36,11 @@ class OpenAIService:
             if customer_name:
                 prompt_variables["customerFirstName"] = customer_name
                 logger.info(f"   Added customer name variable: {customer_name}")
+
+            # Add user context if available
+            if user_context:
+                prompt_variables["userContext"] = user_context
+                logger.info(f"   Added user context variable ({len(user_context)} chars)")
 
             logger.info(f"   Prompt variables: {list(prompt_variables.keys())}")
             

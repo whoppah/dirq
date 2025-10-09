@@ -119,18 +119,35 @@ async def dixa_webhook(payload: WebhookPayload):
             else:
                 logger.info("   ✅ Conversation claimed successfully")
             
-            # Process with OpenAI Prompts (using customer name from payload)
+            # Fetch user context from Dashboard API before OpenAI processing
+            logger.info("📊 DASHBOARD API - Fetching user context")
+            user_context_data = await services.dashboard_service.get_user_context(
+                email=payload.data.author.email,
+                orders_limit=10,
+                threads_limit=10
+            )
+
+            # Format user context for OpenAI if available
+            user_context_formatted = None
+            if user_context_data:
+                user_context_formatted = services.dashboard_service.format_user_context(user_context_data)
+                logger.info(f"   ✅ User context formatted ({len(user_context_formatted)} chars)")
+            else:
+                logger.info("   ⚠️  No user context available - proceeding without it")
+
+            # Process with OpenAI Prompts (using customer name and user context from payload)
             logger.info("🤖 AI PROCESSING:")
             logger.info("   Calling OpenAI service...")
             try:
                 # Extract customer name from payload (fallback to "customer" if null)
                 customer_name = payload.data.author.name or "customer"
                 logger.info(f"   Customer name extracted: {customer_name}")
-                
+
                 ai_response = await services.openai_service.process_message(
                     payload.data.text,
                     customer_name=customer_name,
-                    conversation_id=payload.data.conversation.csid
+                    conversation_id=payload.data.conversation.csid,
+                    user_context=user_context_formatted
                 )
                 logger.info(f"   ✅ OpenAI Response received: {ai_response[:200]}{'...' if len(ai_response) > 200 else ''}")
             except Exception as openai_error:
