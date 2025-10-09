@@ -15,7 +15,7 @@ class OpenAIService:
     async def process_message(self, user_text: str, customer_name: str = None, conversation_id: int = None, user_context: str = None) -> str:
         """
         Process user message using OpenAI Prompts API
-        Uses prompt templates with email, customerFirstName, and userContext variables
+        Uses prompt templates with email, customer_first_name, and user_context variables
         Note: conversation_id parameter accepted but not used (prompt doesn't support it)
         """
         try:
@@ -34,23 +34,22 @@ class OpenAIService:
 
             # Add customer name if available
             if customer_name:
-                prompt_variables["customerFirstName"] = customer_name
-                logger.info(f"   Added customer name variable: {customer_name}")
+                prompt_variables["customer_first_name"] = customer_name
+                logger.info(f"   Added customer_first_name variable: {customer_name}")
 
             # Add user context if available
             if user_context:
-                prompt_variables["userContext"] = user_context
-                logger.info(f"   Added user context variable ({len(user_context)} chars)")
+                prompt_variables["user_context"] = user_context
+                logger.info(f"   Added user_context variable ({len(user_context)} chars)")
 
             logger.info(f"   Prompt variables: {list(prompt_variables.keys())}")
-            
+
             # Call OpenAI Prompts API
             logger.info("   Calling OpenAI Prompts API...")
             response = await self.client.responses.create(
-                model=getattr(settings, "OPENAI_MODEL", "gpt-5"),
                 prompt={
                     "id": self.prompt_id,
-                    "version": "6",  # Updated to version 6 for improved prompt
+                    "version": "7",
                     "variables": prompt_variables
                 }
             )
