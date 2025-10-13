@@ -217,7 +217,7 @@ async def dixa_webhook(payload: WebhookPayload):
 
                         transfer_result = await services.dixa_service.transfer_to_queue(
                             payload.data.conversation.csid,
-                            payload.data.author.id
+                            settings.AGENT_ID  # Use agent ID instead of customer ID
                         )
 
                         if transfer_result["success"]:
