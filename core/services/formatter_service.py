@@ -53,51 +53,69 @@ class MessageFormatter:
     
     def format_response_with_webhook(self, ai_response: str, user_id: str = None, conversation_id: int = None) -> dict:
         """
-        Format AI response with webhook buttons
+        Format AI response with webhook buttons in full HTML document
         Returns the exact payload structure for Dixa API
         """
         try:
-            logger.info("🎨 FORMATTER SERVICE - Formatting response with webhook buttons")
+            logger.info("🎨 FORMATTER SERVICE - Formatting response with full HTML document")
             logger.info(f"   AI Response length: {len(ai_response)} chars")
             logger.info(f"   AI Response preview: {ai_response[:150]}{'...' if len(ai_response) > 150 else ''}")
             logger.info(f"   Webhook base URL: {settings.WEBHOOK_BASE_URL}")
-            
+
+            # Convert plain text response to HTML paragraphs
+            logger.info("   Converting AI response to HTML paragraphs...")
+            # Split by newlines and wrap each paragraph in <p> tags
+            paragraphs = ai_response.split('\n\n')
+            html_paragraphs = ''.join([f'<p>{para.replace(chr(10), "<br>")}</p>' for para in paragraphs if para.strip()])
+
             # Generate dynamic webhook buttons with correct parameters
             logger.info("   Generating dynamic webhook buttons...")
             if user_id and conversation_id:
-                webhook_content = f"""
-<p><strong>Did we resolve your problem?</strong></p>
-<div style="margin: 15px 0;">
-<table cellpadding="0" cellspacing="0" border="0">
-<tr>
-<td style="padding-right: 10px;">
-<a href="{settings.WEBHOOK_BASE_URL}/respond?answer=yes&user_id={user_id}&conversation_id={conversation_id}" 
-   style="display: inline-block; padding: 12px 24px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; border: 2px solid #28a745;">
-✅ Yes
-</a>
-</td>
-<td>
-<a href="{settings.WEBHOOK_BASE_URL}/responded_false?user_id={user_id}&conversation_id={conversation_id}" 
-   style="display: inline-block; padding: 12px 24px; background-color: #dc3545; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; border: 2px solid #dc3545;">
-❌ No
-</a>
-</td>
-</tr>
-</table>
+                webhook_buttons = f"""
+<div style="margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
+    <p style="margin: 0 0 10px 0; font-weight: bold;">Did we resolve your problem?</p>
+    <table cellpadding="0" cellspacing="0" border="0">
+        <tr>
+            <td style="padding-right: 10px;">
+                <a href="{settings.WEBHOOK_BASE_URL}/respond?answer=yes&user_id={user_id}&conversation_id={conversation_id}"
+                   style="display: inline-block; padding: 12px 24px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; border: 2px solid #28a745;">
+                    ✅ Yes
+                </a>
+            </td>
+            <td>
+                <a href="{settings.WEBHOOK_BASE_URL}/responded_false?user_id={user_id}&conversation_id={conversation_id}"
+                   style="display: inline-block; padding: 12px 24px; background-color: #dc3545; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; border: 2px solid #dc3545;">
+                    ❌ No
+                </a>
+            </td>
+        </tr>
+    </table>
 </div>
 """
                 logger.info(f"   Using dynamic parameters: user_id={user_id}, conversation_id={conversation_id}")
             else:
-                webhook_content = self.webhook_content
-                logger.info("   Using static webhook buttons (missing parameters)")
-            
-            # Append webhook buttons to the response
-            logger.info("   Combining AI response with webhook buttons...")
-            combined_content = ai_response + "\n\n" + webhook_content
-            logger.info(f"   Combined content length: {len(combined_content)} chars")
-            
+                webhook_buttons = ""
+                logger.info("   Skipping webhook buttons (missing parameters)")
+
+            # Create full HTML document
+            logger.info("   Building full HTML document...")
+            full_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Response</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    {html_paragraphs}
+    {webhook_buttons}
+</body>
+</html>"""
+
+            logger.info(f"   Full HTML document length: {len(full_html)} chars")
+
             logger.info("   Cleaning text for JSON compatibility...")
-            cleaned_response = self.clean_text_for_json(combined_content)
+            cleaned_response = self.clean_text_for_json(full_html)
             logger.info(f"   Cleaned response length: {len(cleaned_response)} chars")
             
             # Prepare Dixa API payload - don't include userId for outbound agent messages
