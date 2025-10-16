@@ -106,6 +106,19 @@ class DashboardAPIService:
                 parts.append(f"    Created: {order.get('created_at', 'N/A')}")
                 if order.get('items'):
                     parts.append(f"    Items: {len(order['items'])}")
+                # Include tracking URLs if available
+                if order.get('tracking_url'):
+                    parts.append(f"    Tracking URL: {order['tracking_url']}")
+                if order.get('pickup_tracking_url'):
+                    parts.append(f"    Pickup Tracking: {order['pickup_tracking_url']}")
+                if order.get('delivery_tracking_url'):
+                    parts.append(f"    Delivery Tracking: {order['delivery_tracking_url']}")
+                # Include payout information if available
+                if order.get('stripe_payout') is not None:
+                    parts.append(f"    Stripe Payout: €{order['stripe_payout']}")
+                # Include Stripe account errors if present
+                if order.get('stripe_account_error'):
+                    parts.append(f"    ⚠️ Stripe Error: {order['stripe_account_error']}")
             parts.append("")
 
         # Recent message threads
