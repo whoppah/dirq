@@ -14,7 +14,7 @@ class ValidationService:
         # Also allow emails containing "whoppah" in the domain
         self.whoppah_patterns = ["whoppah"]
         # Additional allowed emails
-        self.allowed_emails = ["mrlkns@gmail.com", "sariewalburghschmidt@hotmail.com"]
+        self.allowed_emails = ["mrlkns@gmail.com", "sariewalburghschmidt@hotmail.com", "evelien.remmelts+10@gmail.com"]
         # Excluded emails (blacklist)
         self.excluded_emails = []
     
