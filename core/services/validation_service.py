@@ -22,6 +22,8 @@ class ValidationService:
         """
         Check if email is from an allowed domain (whoppah.com)
         
+        PRODUCTION TESTING MODE: Currently accepting ALL emails for benchmarking
+        
         Args:
             email: Email address to validate
             
@@ -34,38 +36,43 @@ class ValidationService:
             
             email_lower = email.lower().strip()
             
-            # Check if email is in excluded emails list (blacklist)
-            if email_lower in self.excluded_emails:
-                logger.info(f"Email rejected (blacklist): {email_lower}")
-                return False, f"Excluded email: {email_lower}"
+            # PRODUCTION TESTING: Accept all emails for benchmarking
+            logger.info(f"✅ Email accepted (PRODUCTION TESTING MODE): {email_lower}")
+            return True, f"Production testing mode - all emails accepted: {email_lower}"
             
-            # Check if email is in allowed emails list
-            if email_lower in self.allowed_emails:
-                logger.info(f"Email validated (whitelist): {email_lower}")
-                return True, f"Allowed email: {email_lower}"
-            
-            # Extract domain from email
-            email_pattern = r'^[^@]+@([^@]+)$'
-            match = re.match(email_pattern, email_lower)
-            
-            if not match:
-                return False, "Invalid email format"
-            
-            domain = match.group(1)
-            
-            # Check if domain is in allowed list
-            if domain in self.allowed_domains:
-                logger.info(f"Email domain validated: {domain}")
-                return True, f"Allowed domain: {domain}"
-            
-            # Check if domain contains whoppah patterns
-            for pattern in self.whoppah_patterns:
-                if pattern in domain:
-                    logger.info(f"Email domain validated (pattern match): {domain}")
-                    return True, f"Allowed domain (contains '{pattern}'): {domain}"
-            
-            logger.info(f"Email domain rejected: {domain} (not in allowed domains: {self.allowed_domains})")
-            return False, f"Domain not allowed: {domain}"
+            # ORIGINAL VALIDATION LOGIC (COMMENTED OUT FOR PRODUCTION TESTING)
+            # # Check if email is in excluded emails list (blacklist)
+            # if email_lower in self.excluded_emails:
+            #     logger.info(f"Email rejected (blacklist): {email_lower}")
+            #     return False, f"Excluded email: {email_lower}"
+            # 
+            # # Check if email is in allowed emails list
+            # if email_lower in self.allowed_emails:
+            #     logger.info(f"Email validated (whitelist): {email_lower}")
+            #     return True, f"Allowed email: {email_lower}"
+            # 
+            # # Extract domain from email
+            # email_pattern = r'^[^@]+@([^@]+)$'
+            # match = re.match(email_pattern, email_lower)
+            # 
+            # if not match:
+            #     return False, "Invalid email format"
+            # 
+            # domain = match.group(1)
+            # 
+            # # Check if domain is in allowed list
+            # if domain in self.allowed_domains:
+            #     logger.info(f"Email domain validated: {domain}")
+            #     return True, f"Allowed domain: {domain}"
+            # 
+            # # Check if domain contains whoppah patterns
+            # for pattern in self.whoppah_patterns:
+            #     if pattern in domain:
+            #         logger.info(f"Email domain validated (pattern match): {domain}")
+            #         return True, f"Allowed domain (contains '{pattern}'): {domain}"
+            # 
+            # logger.info(f"Email domain rejected: {domain} (not in allowed domains: {self.allowed_domains})")
+            # return False, f"Domain not allowed: {domain}"
                 
         except Exception as e:
             logger.error(f"Error validating email domain: {str(e)}")

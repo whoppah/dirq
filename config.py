@@ -16,5 +16,8 @@ class Settings:
     # Dashboard API configuration
     DASHBOARD_API_URL = os.getenv("DASHBOARD_API_URL", "https://dashboard.production.whoppah.com/api/v1/thirdparty/dixa/mcp/user-context/")
     DASHBOARD_API_TOKEN = os.getenv("DASHBOARD_API_TOKEN", "1163a9ca3473b260e90e92c259090c37fd87c3af")
+    # Slack configuration
+    SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "xoxb-388730295699-3561185702214-FuVF7S9Rwbv7Y2OgSI6u1emC")
+    SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID", "dirq-responses")  # Channel for production testing notifications
 
 settings = Settings()

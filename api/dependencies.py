@@ -5,6 +5,7 @@ from core.services.dixa_service import DixaAPIService
 from core.services.database_service import MongoDBService
 from core.services.validation_service import ValidationService
 from core.services.dashboard_service import DashboardAPIService
+from core.services.slack_service import SlackService
 
 # Service factory functions with caching for singleton behavior
 @lru_cache()
@@ -31,6 +32,10 @@ def get_validation_service() -> ValidationService:
 def get_dashboard_service() -> DashboardAPIService:
     return DashboardAPIService()
 
+@lru_cache()
+def get_slack_service() -> SlackService:
+    return SlackService()
+
 # Service container for easy access
 class ServiceContainer:
     def __init__(self):
@@ -40,6 +45,7 @@ class ServiceContainer:
         self._mongodb_service = None
         self._validation_service = None
         self._dashboard_service = None
+        self._slack_service = None
     
     @property
     def openai_service(self) -> OpenAIService:
@@ -76,6 +82,12 @@ class ServiceContainer:
         if self._dashboard_service is None:
             self._dashboard_service = get_dashboard_service()
         return self._dashboard_service
+
+    @property
+    def slack_service(self) -> SlackService:
+        if self._slack_service is None:
+            self._slack_service = get_slack_service()
+        return self._slack_service
 
 # Global service container instance
 services = ServiceContainer()
