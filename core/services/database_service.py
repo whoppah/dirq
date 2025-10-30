@@ -56,9 +56,9 @@ class MongoDBService:
             try:
                 self.idempotency_collection.create_index(
                     "reserved_at",
-                    expireAfterSeconds=300
+                    expireAfterSeconds=90
                 )
-                logger.info("✅ TTL index created on idempotency collection (5 min expiry)")
+                logger.info("✅ TTL index created on idempotency collection (90 sec expiry)")
             except Exception as idx_err:
                 logger.warning(f"⚠️  TTL index creation warning: {idx_err}")
 
