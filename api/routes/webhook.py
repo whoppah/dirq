@@ -165,8 +165,8 @@ async def dixa_webhook(payload: WebhookPayload):
                 ai_response = f"Error: OpenAI service failed - {str(openai_error)}"
                 handoff_required = False
             
-            # PRODUCTION TESTING MODE: Send to Slack instead of Dixa
-            logger.info("📤 SLACK NOTIFICATION SENDING (PRODUCTION TESTING):")
+            # Send Slack notification (always)
+            logger.info("📤 SLACK NOTIFICATION SENDING:")
             logger.info(f"   User Email: {payload.data.author.email}")
             logger.info(f"   Conversation ID: {payload.data.conversation.csid}")
             
@@ -185,115 +185,105 @@ async def dixa_webhook(payload: WebhookPayload):
             if not slack_result.get('success'):
                 logger.error(f"   ❌ Slack error: {slack_result.get('error', 'Unknown error')}")
             
-            if slack_result["success"]:
-                # ORIGINAL DIXA SENDING CODE (COMMENTED OUT FOR PRODUCTION TESTING)
-                # # Format response with webhook buttons (matching n8n Json converter node)
-                # logger.info("   Formatting response with webhook buttons...")
-                # formatted_response = services.message_formatter.format_response_with_webhook(
-                #     ai_response, 
-                #     user_id=payload.data.author.id,
-                #     conversation_id=payload.data.conversation.csid
-                # )
-                # logger.info(f"   ✅ Response formatted successfully: {formatted_response.get('success', False)}")
-                # 
-                # if formatted_response["success"]:
-                #     # Send message to Dixa (matching n8n "Send Email with webhook included" node)
-                #     logger.info("📤 DIXA MESSAGE SENDING:")
-                #     logger.info(f"   Sending to conversation: {payload.data.conversation.csid}")
-                #     logger.info(f"   Payload size: {len(str(formatted_response['dixa_payload']))} chars")
-                #     
-                #     dixa_result = await services.dixa_service.send_message(
-                #         payload.data.conversation.csid,
-                #         formatted_response["dixa_payload"]
-                #     )
-                #     
-                #     logger.info(f"   ✅ Dixa send result: {dixa_result.get('success', False)}")
-                #     if not dixa_result.get('success'):
-                #         logger.error(f"   ❌ Dixa error: {dixa_result.get('error', 'Unknown error')}")
-                #     
-                # if dixa_result["success"]:
-                # Log to MongoDB (matching n8n Postgres node)
-                logger.info("💾 DATABASE LOGGING:")
-                log_data = {
-                    "conversation_id": payload.data.conversation.csid,
-                    "message_id": payload.data.message_id,
-                    "event_id": payload.event_id,
-                    "user_id": payload.data.author.id,
-                    "ai_response": ai_response,
-                    "is_initial_message": is_initial_message,
-                    "time_diff_ms": time_diff,
-                    "dixa_message_sent": False,  # Changed to False for production testing
-                    "slack_notification_sent": True,  # Track Slack notification
-                    "original_text": payload.data.text
-                }
+            # Initialize dixa_result for tracking
+            dixa_result = {"success": False, "skipped": False}
+            
+            # Only send Dixa reply if handoff is NOT required
+            if not handoff_required:
+                # Format response with webhook buttons (matching n8n Json converter node)
+                logger.info("   Formatting response with webhook buttons...")
+                formatted_response = services.message_formatter.format_response_with_webhook(
+                    ai_response, 
+                    user_id=payload.data.author.id,
+                    conversation_id=payload.data.conversation.csid
+                )
+                logger.info(f"   ✅ Response formatted successfully: {formatted_response.get('success', False)}")
                 
-                logger.info(f"   Logging conversation data to MongoDB...")
-                log_result = await services.mongodb_service.log_conversation(log_data)
-                logger.info(f"   ✅ Database log result: {log_result.get('success', False)}")
-                if not log_result.get('success'):
-                    logger.error(f"   ❌ Database error: {log_result.get('error', 'Unknown error')}")
-
-                # PRODUCTION TESTING: Handoff detection logged but not executed
-                if handoff_required:
-                    logger.info("🔄 HANDOFF REQUIRED - Detected (not executing in production testing mode)")
-                    logger.info(f"   Would transfer conversation {payload.data.conversation.csid} to queue")
+                if formatted_response["success"]:
+                    # Send message to Dixa (matching n8n "Send Email with webhook included" node)
+                    logger.info("📤 DIXA MESSAGE SENDING:")
+                    logger.info(f"   Sending to conversation: {payload.data.conversation.csid}")
+                    logger.info(f"   Payload size: {len(str(formatted_response['dixa_payload']))} chars")
                     
-                    # ORIGINAL HANDOFF CODE (COMMENTED OUT FOR PRODUCTION TESTING)
-                    # transfer_result = await services.dixa_service.transfer_to_queue(
-                    #     payload.data.conversation.csid,
-                    #     settings.AGENT_ID  # Use agent ID instead of customer ID
-                    # )
-                    #
-                    # if transfer_result["success"]:
-                    #     logger.info(f"   ✅ Successfully transferred to queue")
-                    # else:
-                    #     logger.error(f"   ❌ Queue transfer failed: {transfer_result.get('error', 'Unknown error')}")
-
-                    logger.info("🎉 WEBHOOK PROCESSING COMPLETED WITH HANDOFF (PRODUCTION TESTING)!")
-                    logger.info("=" * 80)
-                    return {
-                        "status": "processed_slack_sent_handoff_detected",
-                        "conversation_id": payload.data.conversation.csid,
-                        "message_id": payload.data.message_id,
-                        "isInitialMessage": is_initial_message,
-                        "ai_response": ai_response,
-                        "slack_notification_sent": True,
-                        "logged_to_db": log_result["success"],
-                        "handoff_detected": True,
-                        "production_testing_mode": True
-                    }
-
-                logger.info("🎉 WEBHOOK PROCESSING COMPLETED SUCCESSFULLY (PRODUCTION TESTING)!")
-                logger.info("=" * 80)
-                return {
-                    "status": "processed_slack_sent",
-                    "conversation_id": payload.data.conversation.csid,
-                    "message_id": payload.data.message_id,
-                    "isInitialMessage": is_initial_message,
-                    "ai_response": ai_response,
-                    "slack_notification_sent": True,
-                    "logged_to_db": log_result["success"],
-                    "handoff_detected": False,
-                    "production_testing_mode": True
-                }
+                    dixa_result = await services.dixa_service.send_message(
+                        payload.data.conversation.csid,
+                        formatted_response["dixa_payload"]
+                    )
+                    
+                    logger.info(f"   ✅ Dixa send result: {dixa_result.get('success', False)}")
+                    if not dixa_result.get('success'):
+                        logger.error(f"   ❌ Dixa error: {dixa_result.get('error', 'Unknown error')}")
+                else:
+                    logger.error("❌ RESPONSE FORMATTING FAILED")
+                    logger.error(f"   Error: {formatted_response.get('error', 'Unknown formatting error')}")
             else:
-                # If Slack sending fails, still return the processed response
-                logger.error("❌ SLACK SEND FAILED - Processing completed but notification not sent")
-                logger.error(f"   Error: {slack_result['error']}")
-                # Release idempotency reservation on failure to allow retry
-                await services.mongodb_service.release_reservation(payload.event_id)
+                logger.info("⏭️  SKIPPING DIXA REPLY - Handoff required, will transfer to human agent")
+                dixa_result = {"success": False, "skipped": True}
+            # Log to MongoDB (matching n8n Postgres node)
+            logger.info("💾 DATABASE LOGGING:")
+            log_data = {
+                "conversation_id": payload.data.conversation.csid,
+                "message_id": payload.data.message_id,
+                "event_id": payload.event_id,
+                "user_id": payload.data.author.id,
+                "ai_response": ai_response,
+                "is_initial_message": is_initial_message,
+                "time_diff_ms": time_diff,
+                "dixa_message_sent": dixa_result.get("success", False),
+                "slack_notification_sent": slack_result.get("success", False),
+                "original_text": payload.data.text,
+                "handoff_required": handoff_required
+            }
+            
+            logger.info(f"   Logging conversation data to MongoDB...")
+            log_result = await services.mongodb_service.log_conversation(log_data)
+            logger.info(f"   ✅ Database log result: {log_result.get('success', False)}")
+            if not log_result.get('success'):
+                logger.error(f"   ❌ Database error: {log_result.get('error', 'Unknown error')}")
+
+            # Handle handoff to human agent if required
+            if handoff_required:
+                logger.info("🔄 HANDOFF REQUIRED - Transferring to queue")
+                logger.info(f"   Transferring conversation {payload.data.conversation.csid} to queue...")
+                
+                transfer_result = await services.dixa_service.transfer_to_queue(
+                    payload.data.conversation.csid,
+                    settings.AGENT_ID  # Use agent ID instead of customer ID
+                )
+                
+                if transfer_result["success"]:
+                    logger.info(f"   ✅ Successfully transferred to queue")
+                else:
+                    logger.error(f"   ❌ Queue transfer failed: {transfer_result.get('error', 'Unknown error')}")
+
+                logger.info("🎉 WEBHOOK PROCESSING COMPLETED WITH HANDOFF!")
                 logger.info("=" * 80)
                 return {
-                    "status": "processed_but_slack_not_sent",
+                    "status": "processed_with_handoff",
                     "conversation_id": payload.data.conversation.csid,
                     "message_id": payload.data.message_id,
-                    "event_id": payload.event_id,
                     "isInitialMessage": is_initial_message,
                     "ai_response": ai_response,
-                    "slack_error": slack_result["error"],
-                    "slack_notification_sent": False,
-                    "production_testing_mode": True
+                    "slack_notification_sent": slack_result.get("success", False),
+                    "dixa_message_sent": False,
+                    "logged_to_db": log_result["success"],
+                    "handoff_detected": True,
+                    "transferred_to_queue": transfer_result.get("success", False)
                 }
+
+            logger.info("🎉 WEBHOOK PROCESSING COMPLETED SUCCESSFULLY!")
+            logger.info("=" * 80)
+            return {
+                "status": "processed_and_sent",
+                "conversation_id": payload.data.conversation.csid,
+                "message_id": payload.data.message_id,
+                "isInitialMessage": is_initial_message,
+                "ai_response": ai_response,
+                "slack_notification_sent": slack_result.get("success", False),
+                "dixa_message_sent": dixa_result.get("success", False),
+                "logged_to_db": log_result["success"],
+                "handoff_detected": False
+            }
         else:
             # No operation for messages that don't meet validation criteria
             logger.info("⏭️  MESSAGE SKIPPED:")
